@@ -1,0 +1,85 @@
+/*******************************************
+ *     Lab 7 - Serial Communications       *         
+ *******************************************
+ * Names : AJ Williams & Jun Lee           *
+ * UIN : 650968054 & 667554602             *
+ * NetID : awill276 & hlee388              *
+ *                                         *
+ * Date Evaluated: 3/31/25                 *
+ * Time Evaluated: 10:00am                 *
+ * TA Name: Chris Wood                     *
+ *******************************************/
+
+/*This code is used to utilize a push button to toggle the on-board arduinos
+This can be ran on two mutually grounded ardunios to toggle each other's LED */
+
+//Software serial reference: https://docs.arduino.cc/learn/built-in-libraries/software-serial/#write
+
+#include <SoftwareSerial.h>
+
+int debounceDelay;
+int lastButtonReading;
+int buttonState;
+int currentLit;
+int buttonPin = 2;
+int receivingPin = 0;
+int givingPin = 1; 
+long buttonBounce;
+
+SoftwareSerial mySerial(givingPin, receivingPin); // Fix pin order
+int currentState = 0;
+
+void setup() {
+  pinMode(buttonPin, INPUT);
+  pinMode(13, OUTPUT); // Ensure LED control works
+  debounceDelay = 50;
+  lastButtonReading = LOW;
+  buttonState = LOW;
+  currentLit = 0;
+  buttonBounce = 0;
+  mySerial.begin(9600);
+  Serial.begin(9600);
+}
+
+void loop() {
+  if (mySerial.available()) { // Check if data is available
+      int status = mySerial.read();
+      if(status == 1){
+        if(currentState == 0){
+          currentState = 1;
+        }
+        else{
+          currentState = 0;
+        }
+      }
+    }
+
+  bool dontSend = false;
+  int buttonReading = digitalRead(buttonPin);
+
+  if (buttonReading != lastButtonReading) {
+    buttonBounce = millis();
+  }
+  
+  if ((millis() - buttonBounce) > debounceDelay && buttonReading != buttonState) {
+    buttonState = buttonReading;
+    if (buttonState == LOW) {
+      mySerial.write((uint8_t)1);
+      dontSend = true;
+      Serial.println("Light Toggled!");
+    }
+  }
+
+  lastButtonReading = buttonReading;
+  if (!dontSend) {
+    mySerial.write((uint8_t)0);
+  }
+
+  if (currentState == 0) {
+    digitalWrite(13, LOW);
+  } else {
+    digitalWrite(13, HIGH);
+  }
+
+  //Serial.println(buttonReading);
+}
