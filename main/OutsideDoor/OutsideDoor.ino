@@ -16,6 +16,11 @@
 
 #include<SoftwareSerial.h>
 
+struct OutsidePackage{
+  int micValue;
+  bool validRFID;
+  bool validPin;
+}
 
 const int TX = 0;
 const int RX = 1;
@@ -40,7 +45,12 @@ void loop() {
   //Check if data is available
   int numBytes;
   if(numBytes = customSerial.available()){
-      if(!handleInput(customSerial.read(), numBytes)){
+      byte readBuf[numBytes + 1];
+      if(handleInput(&buf, numBytes))){
+        
+        
+      }
+      else{
         printf("Input handling failure!");
       }
   }
@@ -50,25 +60,14 @@ void loop() {
   bool writing = true;
 
   if(writing){
-    
+    //Create struct
+    //Convert struct to bytes
+    //Write struct byte by byte
   }
 
 }
 
-bool handleInput(int request, int numBytes){
-  switch(request){
-    case 0:
-      break;
-    case 1:
-      break;
-    case 2:
-      break;
-    case 3:
-      break;
-    case 4:
-      break;
-    default:
-      return false;
-  }
+bool handleInput(byte& buffer, int numBytes){
+  //Read, then do something.
   return true;
 }
