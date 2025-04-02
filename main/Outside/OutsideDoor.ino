@@ -14,32 +14,6 @@
  * NetID : awill276                        *
  *******************************************/
 
-#include <SoftwareSerial.h>
-
-struct OutsidePackage {
-  int micValue;
-  bool validRFID;
-  bool validPin;
-};
-
-struct InsidePackage {
-  int status;
-};
-
-struct ControlHubPackage {
-  int status;
-};
-
-const int TX = 0;
-const int RX = 1;
-const int LCD_SDA = 18;  //A4
-const int LCD_SCL = 19;  //A5
-
-const int READ_BUFFER_SIZE = 2048;
-
-bool debug = false;
-
-
 SoftwareSerial customSerial(TX, RX);
 
 /*PURPOSE: */

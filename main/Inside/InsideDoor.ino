@@ -14,41 +14,13 @@
  * NetID : awill276                        *
  *******************************************/
 
-#include <SoftwareSerial.h>
-
-struct OutsidePackage {
-  int micValue;
-  bool validIR;
-  bool validRFID;
-  bool validPin;
-};
-
-struct InsidePackage {
-  bool validIR;
-  bool isMoving;
-
-};
-
-struct ControlHubPackage {
-  int status;
-};
-
-const int TX = 0;
-const int RX = 1;
-const int LCD_SDA = 18;  //A4
-const int LCD_SCL = 19;  //A5
-
-const int READ_BUFFER_SIZE = 2048;
-
-bool debug = false;
-
 SoftwareSerial customSerial(TX, RX);
 
 /*PURPOSE: */
 void setup() {
   // put your setup code here, to run once:
-  customSerial.begin(9600);
-  Serial.begin(9600);
+  customSerial.begin(BAUD_RATE);
+  Serial.begin(BAUD_RATE);
   //TODO: Begin LCD and other modules
 }
 
