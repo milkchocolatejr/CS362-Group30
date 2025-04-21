@@ -119,7 +119,7 @@ void loop() {
   lastButtonState = reading;
 
   if(send){
-    mySerial.write((byte*)&response);
+    mySerial.write((byte*)&response, sizeof(Message));
     Serial.println("RESPONSE WRITTEN!");
   }
   
