@@ -110,6 +110,8 @@ void loop() {
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
+  if(debug){Serial.println("CALLED!");}
+
   //Read, then do something.
   if (numBytes != sizeof(Message) + 1) {
     if (debug) {
