@@ -20,6 +20,7 @@
 
 struct Message{
     byte to;
+    byte from;
     int micValue;
     int validIR;
     int validRFID;

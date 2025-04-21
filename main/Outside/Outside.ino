@@ -16,6 +16,7 @@
 
 struct Message{
     byte to;
+    byte from;
     int micValue;
     int validIR;
     bool validPin;
@@ -44,7 +45,7 @@ void setup() {
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
   tick = millis();
-  pinMode(buttonPin,INPUT);
+  pinMode(buttonPin,INPUT_PULLUP);
 
   //TODO: Begin LCD and other modules
 }
@@ -91,6 +92,7 @@ void loop() {
     lastDebounceTime = millis();
   }
 
+  Message response;
   int reading = digitalRead(buttonPin);
 
   // will hit the condition every delay of 100ms if lastDebounceTime was updated. If not, will hit the condition real-time
@@ -103,16 +105,30 @@ void loop() {
       // If current input is HIGH, increase counter and update LEDs
       if (buttonInput == HIGH) {
         // When Button is HIGH or Pressed
+        prepareMessage(response);
       }
     }
   }
   lastButtonState = reading;
 
-  if(millis() - tick > 200){
-
-    int buttonPin = 9;
+  if(response != NULL){
+    mySerial.write(response);
+    Serial.println("RESPONSE WRITTEN!");
   }
   
+}
+
+void prepareMessage(Message& response){
+  if(locked){
+    message.unlocked = true;
+    locked = false;
+  }
+  else{
+    message.locked = true;
+    locked = true;
+  }
+  message.to = 'C';
+  message.from = 'O';
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
