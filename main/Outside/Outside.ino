@@ -15,7 +15,7 @@
  *******************************************/
 
 struct Message{
-    char from;
+    byte to;
     int micValue;
     int validIR;
     bool validPin;
@@ -30,11 +30,14 @@ struct Message{
 const int SERIAL_BAUD = 115200;
 SoftwareSerial mySerial(2, 3);
 
+long tick;
+
 /*PURPOSE: */
 void setup() {
   // put your setup code here, to run once:
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
+  tick = millis();
   //TODO: Begin LCD and other modules
 }
 
@@ -73,22 +76,11 @@ void loop() {
       }
     }
   }
+  
+  if(millis() - tick > 200){
+    int buttonPin = 9;
   }
-
-  //TODO: capture mic, number pad, rfid input. Handle said input
-  //TODO: Use speaker if needed.
-  //TODO: Begin packaging output for control hub
-  bool writing = true;
-
-  if (writing) {
-    Message response;
-    //Create struct
-
-    //Convert struct to bytes
-
-    //Write struct byte by byte
-    mySerial.write('C');
-  }
+  
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
