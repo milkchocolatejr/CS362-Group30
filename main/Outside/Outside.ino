@@ -34,6 +34,11 @@ unsigned long debounceDelay = 200;    // the debounce time; increase if the outp
 int buttonPin = 9;
 unsigned long interval = millis();
 int delayTime = 500;
+bool debug = true;
+int READ_BUFFER_SIZE = 2048;
+int lastButtonState = LOW;
+int buttonInput;
+
 
 SoftwareSerial mySerial(2, 3);
 
@@ -86,14 +91,16 @@ void loop() {
     }
   }
   
-  / If the state has changed
+  int reading = digitalRead(buttonPin);
+  // If the state has changed
   if (reading != lastButtonState) {
     // reset the debouncing timer to make the next if statement wait 50ms
     lastDebounceTime = millis();
   }
 
   Message response;
-  int reading = digitalRead(buttonPin);
+  bool send = false;
+  //int reading = digitalRead(buttonPin);
 
   // will hit the condition every delay of 100ms if lastDebounceTime was updated. If not, will hit the condition real-time
   if ((millis() - lastDebounceTime) > debounceDelay) {
@@ -105,30 +112,32 @@ void loop() {
       // If current input is HIGH, increase counter and update LEDs
       if (buttonInput == HIGH) {
         // When Button is HIGH or Pressed
-        prepareMessage(response);
+        bool send = prepareMessage(response);
       }
     }
   }
   lastButtonState = reading;
 
-  if(response != NULL){
-    mySerial.write(response);
+  if(send){
+    mySerial.write((byte*)&response);
     Serial.println("RESPONSE WRITTEN!");
   }
   
 }
 
-void prepareMessage(Message& response){
-  if(locked){
-    message.unlocked = true;
-    locked = false;
+bool prepareMessage(Message& response){
+  if(response.locked){
+    response.unlocked = true;
+    //response.locked = false;
   }
   else{
-    message.locked = true;
-    locked = true;
+    response.locked = true;
+    //response.locked = true;
   }
-  message.to = 'C';
-  message.from = 'O';
+  response.to = 'C';
+  response.from = 'O';
+
+  return true;
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
