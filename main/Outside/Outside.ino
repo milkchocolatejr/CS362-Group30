@@ -38,6 +38,7 @@ bool debug = true;
 int READ_BUFFER_SIZE = sizeof(Message);
 int lastButtonState = HIGH;
 int buttonInput;
+const int SIZE = 20;
 
 
 SoftwareSerial mySerial(2, 3);
@@ -62,12 +63,12 @@ void loop() {
   //Serial.println("testing if its working");
   int numBytes;
   if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
-    byte readBuf[READ_BUFFER_SIZE];
+    byte readBuf[SIZE];
     //Populate the buffer
-    mySerial.readBytes(readBuf, sizeof(Message));
+    mySerial.readBytes(readBuf, SIZE);
 
     Message requestMessage;
-    if (handleInput(readBuf, numBytes, requestMessage)) {
+    if (handleInput(readBuf, SIZE, requestMessage)) {
       if (debug) {
         Serial.println("Input handling success!");
         //do things with output
@@ -127,24 +128,18 @@ void loop() {
   lastButtonState = reading;
 
   if(send){
-    mySerial.write((byte*)&response, sizeof(Message));
+    mySerial.write((byte*)&response, SIZE);
     Serial.println("RESPONSE WRITTEN!");
   }
   
 }
 
 bool prepareMessage(Message& response){
-  if(response.locked){
-    response.unlocked = true;
-    //response.locked = false;
-  }
-  else{
-    response.locked = true;
-    //response.locked = true;
-  }
+  response.locked = true;
+  response.unlocked = false;
   response.to = 'C';
-  response.from = 'O';
-  response.micValue = -1;
+  response.from = 'I';
+  response.micValue = 500;
   response.isMoving = false;
   response.validIR = false;
   response.validPin = false;
@@ -154,7 +149,8 @@ bool prepareMessage(Message& response){
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   //Read, then do something.
-  if (numBytes != sizeof(Message) + 1) {
+  Serial.println("GOTBACK");
+  if (numBytes != SIZE) {
     if (debug) {
       Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
     }
@@ -162,6 +158,6 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   }
 
   memcpy(&requestMessage, buffer, numBytes);
-  Serial.println("WORKED!");
+
   return true;
 }

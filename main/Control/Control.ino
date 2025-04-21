@@ -48,16 +48,18 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 bool locked;
 int topPos;
 int botPos;
-String topLine;
-String bottomLine;
+String topLine = "DOOR UNLOCKED";
+String bottomLine = "WELCOME!";
+long lastTick;
 
 
 //DEBUG FLAG
-bool debug = true;
+bool debug = false;
 
 //CALCULATION CONSTANTS
 const int READ_BUFFER_SIZE = 2048;
 const int SERIAL_BAUD = 115200;
+const int REFRESH_RATE = 500;
 
 
 /*PURPOSE: This code is intended to serve as the control hub, receiving input and priniting haptics. */
@@ -72,6 +74,7 @@ void setup() {
   locked = false;
   topPos = 0;
   botPos = 0;
+  lastTick = millis();
 
   Serial.println("Program Start!");
 }
@@ -108,6 +111,21 @@ void loop() {
       }
     }
   }
+  if(millis() - lastTick > REFRESH_RATE){
+    updateLCD();
+    lastTick = millis();
+  }
+}
+
+bool prepareMessage(Message& command, char recipient){
+  command.from = 'C';
+  command.to = recipient;
+  command.locked = locked;
+  command.unlocked = !locked;
+  command.micValue = -1;
+  command.isMoving = false;
+  command.validIR = false;
+  command.validPin = false;
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
@@ -131,38 +149,42 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   }
 
   if(requestMessage.locked || requestMessage.unlocked){
-    if(requestMessage.locked){
+    if(requestMessage.locked && !locked){
       if(debug){Serial.println("LOCKED!");}
       topLine = "DOOR LOCKED";
       locked = true;
+      Message command;
+      prepareMessage(command, (requestMessage.from == 'I' ? 'O' : 'I'));
+      customSerial.write((byte*)&command, SIZE);
     }
-    else if(requestMessage.unlocked){
+    else if(requestMessage.unlocked && locked){
       if(debug){Serial.println("UNLOCKED!");}
       topLine = "DOOR UNLOCKED";
       locked = false;
     }
-
-    if(requestMessage.validIR){
-        if(debug){Serial.println("BY IR SENSOR");}
-          bottomLine = "BY IR SENSOR";
-        }
-      else if(requestMessage.validPin){
-        if(debug){Serial.println("BY KEYPAD");}
-        bottomLine = "BY KEYPAD";
-      }
   }
   else{
     if(debug){Serial.println("Casual event hit.");}
     if(requestMessage.from == 'O'){
-      bottomLine = "NOISE LEVEL: " + requestMessage.micValue;
+      bottomLine = String("NOISE LEVEL ");
+      if(requestMessage.micValue < 500){
+        bottomLine += "LOW! ";
+      }
+      else{
+        bottomLine += "HIGH! ";
+      }
     }
     if(requestMessage.from == 'I'){
-      bottomLine = String("DOOR ") + (requestMessage.isMoving ? "OPEN" : "CLOSED");
+      bottomLine = String("DOOR ");
+      if(requestMessage.isMoving){
+        bottomLine += "OPEN";
+      }
+      else{
+        bottomLine += "CLOSED";
+      }
     }
+
   }
-
-  updateLCD();
-
   return true;
 }
 
@@ -179,23 +201,20 @@ void updateLCD(){
 
   int topEndIndex;
   topEndIndex = topPos + 16;
-  if(topLine.length() <= topPos + 16){
+  if(topLine.length() < topPos + 16){
     topEndIndex = topLine.length();
     topShort = true;
   }
 
   int botEndIndex;
   botEndIndex = botPos + 16;
-  if(bottomLine.length() <= botPos + 16){
+  if(bottomLine.length() < botPos + 16){
     botEndIndex = bottomLine.length();
     botShort = true;
   }
   
   String topDisplay = (topLine.length() < 16) ? topLine : topLine.substring(topPos, topEndIndex);
   String botDisplay = (bottomLine.length() < 16) ? bottomLine :  bottomLine.substring(botPos, botEndIndex);
-
-  Serial.println(topDisplay);
-  Serial.println(botDisplay);
 
   if(topShort && topDisplay != topLine){
     int left = 16 - topDisplay.length();
@@ -209,6 +228,12 @@ void updateLCD(){
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(topDisplay);
+    
+  if(debug){
+    Serial.println(topDisplay);
+    Serial.println(botDisplay);
+  }
+  
   lcd.setCursor(0, 1);
   lcd.print(botDisplay);
 
