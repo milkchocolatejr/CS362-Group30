@@ -19,8 +19,9 @@ SoftwareSerial customSerial(TX, RX);
 /*PURPOSE: */
 void setup() {
   // put your setup code here, to run once:
-  customSerial.begin(9600);
-  Serial.begin(9600);
+  customSerial.begin(38400);
+  Serial.begin(115200);
+  
   //TODO: Begin LCD and other modules
 }
 

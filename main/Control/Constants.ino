@@ -8,6 +8,8 @@ const int BAUD_RATE = 9600;
 //GLOBAL PINS
 const int TX = 0;
 const int RX = 1;
+const int vTX = 2;
+const int vRX = 3;
 const int LCD_SDA = 18;  //A4
 const int LCD_SCL = 19;  //A5
 
