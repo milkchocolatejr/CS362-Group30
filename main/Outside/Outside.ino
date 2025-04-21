@@ -64,7 +64,7 @@ void loop() {
   if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
     byte readBuf[READ_BUFFER_SIZE];
     //Populate the buffer
-    mySerial.readBytes(readBuf, numBytes);
+    mySerial.readBytes(readBuf, sizeof(Message));
 
     Message requestMessage;
     if (handleInput(readBuf, numBytes, requestMessage)) {
@@ -81,7 +81,7 @@ void loop() {
 
   if(numBytes = Serial.available() && Serial.peek() == 'O'){
     byte readBuf[READ_BUFFER_SIZE];
-    Serial.readBytes(readBuf, numBytes);
+    Serial.readBytes(readBuf, sizeof(Message));
 
     Message requestMessage;
     if (handleInput(readBuf, numBytes, requestMessage)) {
