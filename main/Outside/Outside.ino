@@ -30,12 +30,12 @@ struct Message{
 
 const int SERIAL_BAUD = 115200;
 unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 200;    // the debounce time; increase if the output flickers
+unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 int buttonPin = 9;
 unsigned long interval = millis();
 int delayTime = 500;
 bool debug = true;
-int READ_BUFFER_SIZE = 2048;
+int READ_BUFFER_SIZE = sizeof(Message);
 int lastButtonState = HIGH;
 int buttonInput;
 
@@ -50,7 +50,7 @@ void setup() {
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
   tick = millis();
-  pinMode(buttonPin,INPUT_PULLUP);
+  pinMode(buttonPin, INPUT);
   Serial.println("working?");
   mySerial.println("working?");
 
@@ -115,10 +115,12 @@ void loop() {
       // If current input is HIGH, increase counter and update LEDs
       if (buttonInput == LOW) {
         // When Button is HIGH or Pressed
-        send = prepareMessage(response);
         if(debug) {
-          Serial.println("finished");
+          Serial.println("finished Serial");
+          //mySerial.println("finished mySerial");
         }
+        send = prepareMessage(response);
+    
       }
     }
   }
