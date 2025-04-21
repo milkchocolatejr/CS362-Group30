@@ -144,6 +144,10 @@ bool prepareMessage(Message& response){
   }
   response.to = 'C';
   response.from = 'O';
+  response.micValue = -1;
+  response.isMoving = false;
+  response.validIR = false;
+  response.validPin = false;
 
   return true;
 }
