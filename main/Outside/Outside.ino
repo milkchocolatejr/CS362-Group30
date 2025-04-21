@@ -115,7 +115,7 @@ void loop() {
       // If current input is HIGH, increase counter and update LEDs
       if (buttonInput == LOW) {
         // When Button is HIGH or Pressed
-        bool send = prepareMessage(response);
+        send = prepareMessage(response);
         if(debug) {
           Serial.println("finished");
         }
