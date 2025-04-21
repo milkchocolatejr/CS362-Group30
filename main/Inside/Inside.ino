@@ -5,35 +5,50 @@
  * UIN : 650968054                         *
  * NetID : awill276                        *
  *******************************************
- * Developer 2: AJ Williams                *
- * UIN : 650968054                         *
- * NetID : awill276                        *
+ * Developer 2: Elias Krupa                *
+ * UIN : 661040904                         *
+ * NetID : ekrup2                          *
  *******************************************
  * Developer 2: AJ Williams                *
  * UIN : 650968054                         *
  * NetID : awill276                        *
  *******************************************/
 
-SoftwareSerial customSerial(TX, RX);
+struct Message{
+    char from;
+    int micValue;
+    int validIR;
+    bool validPin;
+    bool isMoving;
+    bool locked;
+    bool unlocked;
+};
+
+char identifier = 'I';
+
+#include <SoftwareSerial.h>
+
+const int SERIAL_BAUD = 115200;
+SoftwareSerial mySerial(2, 3);
 
 /*PURPOSE: */
 void setup() {
   // put your setup code here, to run once:
-  customSerial.begin(BAUD_RATE);
-  Serial.begin(BAUD_RATE);
+  mySerial.begin(SERIAL_BAUD);
+  Serial.begin(SERIAL_BAUD);
   //TODO: Begin LCD and other modules
 }
 
 void loop() {
   //Check if data is available
   int numBytes;
-  if (numBytes = customSerial.available()) {
+  if (numBytes = mySerial.available() && mySerial.peek() == identifier) {
     byte readBuf[READ_BUFFER_SIZE];
     //Populate the buffer
-    customSerial.readBytes(readBuf, numBytes);
+    mySerial.readBytes(readBuf, numBytes);
 
-    ControlHubPackage request;
-    if (handleInput(readBuf, numBytes, request)) {
+    Message requestMessage;
+    if (handleInput(readBuf, numBytes, requestMessage)) {
       if (debug) {
         Serial.println("Input handling success!");
         //do things with output
@@ -44,29 +59,49 @@ void loop() {
       }
     }
   }
+
+  if(numBytes = Serial.available() && Serial.peek() == identifier){
+    byte readBuf[READ_BUFFER_SIZE];
+    Serial.readBytes(readBuf, numBytes);
+
+    Message requestMessage;
+    if (handleInput(readBuf, numBytes, requestMessage)) {
+      if (debug) { Serial.println("Input handling success!");}
+      
+    } else {
+      if (debug) {
+        Serial.println("Input handling failure!");
+      }
+    }
+  }
+  }
+
   //TODO: capture mic, number pad, rfid input. Handle said input
   //TODO: Use speaker if needed.
   //TODO: Begin packaging output for control hub
   bool writing = true;
 
-
   if (writing) {
+    Message response;
     //Create struct
 
     //Convert struct to bytes
+
     //Write struct byte by byte
+    mySerial.write('C');
   }
 }
 
-bool handleInput(byte* buffer, int numBytes, ControlHubPackage& output) {
+bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   //Read, then do something.
-  if (numBytes != sizeof(ControlHubPackage)) {
+  if (numBytes != sizeof(Message) + 1) {
     if (debug) {
       Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
     }
     return false;
   }
 
-  memcpy(&output, buffer, numBytes);
+  memcpy(&requestMessage, buffer, numBytes);
+  Serial.println("WORKED!");
   return true;
 }

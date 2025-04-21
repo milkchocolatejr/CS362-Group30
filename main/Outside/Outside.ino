@@ -14,28 +14,40 @@
  * NetID : awill276                        *
  *******************************************/
 
+struct Message{
+    char from;
+    int micValue;
+    int validIR;
+    bool validPin;
+    bool isMoving;
+    bool locked;
+    bool unlocked;
+};
+
+
 #include <SoftwareSerial.h>
 
+const int SERIAL_BAUD = 115200;
 SoftwareSerial mySerial(2, 3);
 
 /*PURPOSE: */
 void setup() {
   // put your setup code here, to run once:
-  mySerial.begin(38400);
-  Serial.begin(115200);
+  mySerial.begin(SERIAL_BAUD);
+  Serial.begin(SERIAL_BAUD);
   //TODO: Begin LCD and other modules
 }
 
 void loop() {
   //Check if data is available
   int numBytes;
-  if (numBytes = mySerial.available()) {
+  if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
     byte readBuf[READ_BUFFER_SIZE];
     //Populate the buffer
     mySerial.readBytes(readBuf, numBytes);
 
-    ControlHubPackage request;
-    if (handleInput(readBuf, numBytes, request)) {
+    Message requestMessage;
+    if (handleInput(readBuf, numBytes, requestMessage)) {
       if (debug) {
         Serial.println("Input handling success!");
         //do things with output
@@ -47,14 +59,20 @@ void loop() {
     }
   }
 
-  // listening for input form control hub arduino
-  if (Serial.available()) {
-    int incomingByte = Serial.read();
-    // handle incoming byte from main Arduino
-    if (debug) {
-      Serial.print("Received from Control Hub: ");
-      Serial.println(incomingByte);
+  if(numBytes = Serial.available() && Serial.peek() == 'O'){
+    byte readBuf[READ_BUFFER_SIZE];
+    Serial.readBytes(readBuf, numBytes);
+
+    Message requestMessage;
+    if (handleInput(readBuf, numBytes, requestMessage)) {
+      if (debug) { Serial.println("Input handling success!");}
+      
+    } else {
+      if (debug) {
+        Serial.println("Input handling failure!");
+      }
     }
+  }
   }
 
   //TODO: capture mic, number pad, rfid input. Handle said input
@@ -63,24 +81,26 @@ void loop() {
   bool writing = true;
 
   if (writing) {
+    Message response;
     //Create struct
 
     //Convert struct to bytes
 
     //Write struct byte by byte
-    mySerial.write('A');
+    mySerial.write('C');
   }
 }
 
-bool handleInput(byte* buffer, int numBytes, ControlHubPackage& output) {
+bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   //Read, then do something.
-  if (numBytes != sizeof(ControlHubPackage)) {
+  if (numBytes != sizeof(Message) + 1) {
     if (debug) {
       Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
     }
     return false;
   }
 
-  memcpy(&output, buffer, numBytes);
+  memcpy(&requestMessage, buffer, numBytes);
+  Serial.println("WORKED!");
   return true;
 }
