@@ -19,7 +19,7 @@
 #include <LiquidCrystal_I2C.h>
 
 struct Message{
-    int from;
+    byte to;
     int micValue;
     int validIR;
     int validRFID;
