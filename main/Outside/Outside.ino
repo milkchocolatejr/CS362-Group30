@@ -36,7 +36,7 @@ unsigned long interval = millis();
 int delayTime = 500;
 bool debug = true;
 int READ_BUFFER_SIZE = 2048;
-int lastButtonState = LOW;
+int lastButtonState = HIGH;
 int buttonInput;
 
 
@@ -51,12 +51,15 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   tick = millis();
   pinMode(buttonPin,INPUT_PULLUP);
+  Serial.println("working?");
+  mySerial.println("working?");
 
   //TODO: Begin LCD and other modules
 }
 
 void loop() {
   //Check if data is available
+  //Serial.println("testing if its working");
   int numBytes;
   if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
     byte readBuf[READ_BUFFER_SIZE];
@@ -110,9 +113,12 @@ void loop() {
       buttonInput = reading;
 
       // If current input is HIGH, increase counter and update LEDs
-      if (buttonInput == HIGH) {
+      if (buttonInput == LOW) {
         // When Button is HIGH or Pressed
         bool send = prepareMessage(response);
+        if(debug) {
+          Serial.println("finished");
+        }
       }
     }
   }
