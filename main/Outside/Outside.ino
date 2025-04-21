@@ -28,6 +28,12 @@ struct Message{
 #include <SoftwareSerial.h>
 
 const int SERIAL_BAUD = 115200;
+unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 200;    // the debounce time; increase if the output flickers
+int buttonPin = 9;
+unsigned long interval = millis();
+int delayTime = 500;
+
 SoftwareSerial mySerial(2, 3);
 
 long tick;
@@ -38,6 +44,8 @@ void setup() {
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
   tick = millis();
+  pinMode(buttonPin,INPUT);
+
   //TODO: Begin LCD and other modules
 }
 
@@ -77,7 +85,31 @@ void loop() {
     }
   }
   
+  / If the state has changed
+  if (reading != lastButtonState) {
+    // reset the debouncing timer to make the next if statement wait 50ms
+    lastDebounceTime = millis();
+  }
+
+  int reading = digitalRead(buttonPin);
+
+  // will hit the condition every delay of 100ms if lastDebounceTime was updated. If not, will hit the condition real-time
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    // if the button state has changed, update the current input
+    if (reading != buttonInput) {
+      // Set button input after the delay from a bounce
+      buttonInput = reading;
+
+      // If current input is HIGH, increase counter and update LEDs
+      if (buttonInput == HIGH) {
+        // When Button is HIGH or Pressed
+      }
+    }
+  }
+  lastButtonState = reading;
+
   if(millis() - tick > 200){
+
     int buttonPin = 9;
   }
   
