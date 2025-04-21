@@ -79,7 +79,7 @@ void loop() {
   //Check if data is available
   int numBytes;
   if (numBytes = customSerial.available() && customSerial.peek() == 'C') {
-    byte readBuf[READ_BUFFER_SIZE];
+    byte readBuf[sizeof(Message)];
     //Populate the buffer
     customSerial.readBytes(readBuf, numBytes);
 
@@ -94,7 +94,7 @@ void loop() {
     }
   }
   if(numBytes = Serial.available() && Serial.peek() == 'C'){
-    byte readBuf[READ_BUFFER_SIZE];
+    byte readBuf[sizeof(Message)];
     Serial.readBytes(readBuf, numBytes);
 
     Message requestMessage;
@@ -113,7 +113,7 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   if(debug){Serial.println("CALLED!");}
 
   //Read, then do something.
-  if (numBytes != sizeof(Message) + 1) {
+  if (numBytes != sizeof(Message)) {
     if (debug) {
       Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
     }
