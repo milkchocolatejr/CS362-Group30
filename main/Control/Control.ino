@@ -19,7 +19,7 @@
 #include <LiquidCrystal_I2C.h>
 
 struct Message{
-    byte to;
+    byte to; 
     byte from;
     int micValue;
     int validIR;
@@ -29,6 +29,7 @@ struct Message{
     bool locked;
     bool unlocked;
 };
+
 
 //GLOBAL PINS
 const int TX = 0;
@@ -40,6 +41,7 @@ const int LCD_SCL = 19;  //A5
 const int buzzerPin = 5;
 const int lockedLED = 6;
 const int unlockedLED = 7;
+const int SIZE = 20;
 
 //RUNTIME ESTABLISHED
 SoftwareSerial customSerial(vTX, vRX);
@@ -78,13 +80,13 @@ void setup() {
 void loop() {
   //Check if data is available
   int numBytes;
-  if (numBytes = customSerial.available() && customSerial.peek() == 'C') {
-    byte readBuf[sizeof(Message)];
+  if (numBytes = customSerial.available()) {
+    byte readBuf[SIZE];
     //Populate the buffer
-    customSerial.readBytes(readBuf, numBytes);
+    customSerial.readBytes(readBuf, SIZE);
 
     Message requestMessage;
-    if (handleInput(readBuf, numBytes, requestMessage)) {
+    if (handleInput(readBuf, SIZE, requestMessage)) {
       if (debug) { Serial.println("Input handling success!");}
       
     } else {
@@ -93,12 +95,12 @@ void loop() {
       }
     }
   }
-  if(numBytes = Serial.available() && Serial.peek() == 'C'){
-    byte readBuf[sizeof(Message)];
-    Serial.readBytes(readBuf, numBytes);
+  if(numBytes = Serial.available()){
+    byte readBuf[SIZE];
+    Serial.readBytes(readBuf, SIZE);
 
     Message requestMessage;
-    if (handleInput(readBuf, numBytes, requestMessage)) {
+    if (handleInput(readBuf, SIZE, requestMessage)) {
       if (debug) { Serial.println("Input handling success!");}
       
     } else {
@@ -110,17 +112,24 @@ void loop() {
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
-  if(debug){Serial.println("CALLED!");}
-
+  if(debug){
+    Serial.println("CALLED!");
+  }
   //Read, then do something.
   if (numBytes != sizeof(Message)) {
     if (debug) {
       Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
     }
-    return false;
+    //return false;
   }
 
   memcpy(&requestMessage, buffer, numBytes);
+
+  if(debug){
+    Serial.println(requestMessage.from);
+    Serial.println(requestMessage.to);
+    Serial.println(numBytes);
+  }
 
   if(requestMessage.locked || requestMessage.unlocked){
     if(requestMessage.locked){
