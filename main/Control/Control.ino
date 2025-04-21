@@ -52,7 +52,7 @@ String bottomLine;
 
 
 //DEBUG FLAG
-bool debug = false;
+bool debug = true;
 
 //CALCULATION CONSTANTS
 const int READ_BUFFER_SIZE = 2048;
@@ -61,17 +61,18 @@ const int SERIAL_BAUD = 115200;
 
 /*PURPOSE: This code is intended to serve as the control hub, receiving input and priniting haptics. */
 void setup() {
-
   customSerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
   
   lcd.init();
   lcd.backlight();
-
+  
 
   locked = false;
   topPos = 0;
   botPos = 0;
+
+  Serial.println("Program Start!");
 }
 
 void loop() {
@@ -139,7 +140,6 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
         if(debug){Serial.println("BY KEYPAD");}
         bottomLine = "BY KEYPAD";
       }
-    }
   }
   else{
     if(debug){Serial.println("Casual event hit.");}
@@ -147,7 +147,7 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
       bottomLine = "NOISE LEVEL: " + requestMessage.micValue;
     }
     if(requestMessage.from == 'I'){
-      bottomLine = "DOOR " + (requestMessage.isMoving ? "OPEN": "CLOSED");
+      bottomLine = String("DOOR ") + (requestMessage.isMoving ? "OPEN" : "CLOSED");
     }
   }
 
