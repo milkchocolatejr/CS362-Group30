@@ -40,6 +40,7 @@ const int LCD_SCL = 19;  //A5
 const int buzzerPin = 5;
 const int lockedLED = 6;
 const int unlockedLED = 7;
+const int noiseLED[3] = {8,9,10};
 const int SIZE = 20;
 
 //RUNTIME ESTABLISHED
@@ -70,11 +71,15 @@ void setup() {
   lcd.init();
   lcd.backlight();
   
+  pinMode(lockedLED, OUTPUT);
+  pinMode(unlockedLED, OUTPUT);
 
-  locked = false;
+  locked = true;
   topPos = 0;
   botPos = 0;
   lastTick = millis();
+
+  unlock();
 
   Serial.println("Program Start!");
 }
@@ -150,17 +155,20 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
 
   if(requestMessage.locked || requestMessage.unlocked){
     if(requestMessage.locked && !locked){
-      if(debug){Serial.println("LOCKED!");}
-      topLine = "DOOR LOCKED";
-      locked = true;
+      lock();
       Message command;
-      prepareMessage(command, (requestMessage.from == 'I' ? 'O' : 'I'));
+      char to = (requestMessage.from == 'I' ? 'O' : 'I');
+      prepareMessage(command, to);
       customSerial.write((byte*)&command, SIZE);
+      Serial.println("Written to" + to );
     }
     else if(requestMessage.unlocked && locked){
-      if(debug){Serial.println("UNLOCKED!");}
-      topLine = "DOOR UNLOCKED";
-      locked = false;
+      unlock();
+      Message command;
+      char to = (requestMessage.from == 'I' ? 'O' : 'I');
+      prepareMessage(command, to);
+      customSerial.write((byte*)&command, SIZE);
+      Serial.println("Written to" + to );
     }
   }
   else{
@@ -173,6 +181,7 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
       else{
         bottomLine += "HIGH! ";
       }
+      setNoiseLED(requestMessage.micValue);
     }
     if(requestMessage.from == 'I'){
       bottomLine = String("DOOR ");
@@ -239,6 +248,41 @@ void updateLCD(){
 
   topPos++;
   botPos++;
+}
+
+void setNoiseLED(int reading){
+  int mappedValue = map(reading, 0, 1000, 1, 3);
+
+  for(int i = 0; i < 3; i++){
+    if(i < mappedValue){
+      digitalWrite(noiseLED[i], HIGH);
+    }
+    else{
+      digitalWrite(noiseLED[i], LOW);
+    }
+  }
+}
+
+void lock(){
+  if(locked){
+    return;
+  }
+  locked = true;
+  digitalWrite(lockedLED, HIGH);
+  digitalWrite(unlockedLED, LOW);
+  if(debug){Serial.println("LOCKED!");}
+  topLine = "DOOR LOCKED";
+}
+
+void unlock(){
+  if(!locked){
+    return;
+  }
+  locked = false;
+  digitalWrite(lockedLED, LOW);
+  digitalWrite(unlockedLED, HIGH);
+  if(debug){Serial.println("UNLOCKED!");}
+  topLine = "DOOR UNLOCKED";
 }
 
 

@@ -33,10 +33,10 @@ unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
 int buttonPin = 9;
 unsigned long interval = millis();
-int delayTime = 500;
-bool debug = true;
+int delayTime;
+bool debug;
 int READ_BUFFER_SIZE = sizeof(Message);
-int lastButtonState = HIGH;
+int lastButtonState;
 int buttonInput;
 const int SIZE = 20;
 
@@ -54,6 +54,9 @@ void setup() {
   pinMode(buttonPin, INPUT);
   Serial.println("working?");
   mySerial.println("working?");
+  debug = false;
+  lastButtonState = HIGH;
+  delayTime = 500;
 
   //TODO: Begin LCD and other modules
 }
@@ -139,7 +142,7 @@ bool prepareMessage(Message& response){
   response.unlocked = false;
   response.to = 'C';
   response.from = 'I';
-  response.micValue = 500;
+  response.micValue = -1;
   response.isMoving = false;
   response.validIR = false;
   response.validPin = false;
@@ -158,6 +161,16 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   }
 
   memcpy(&requestMessage, buffer, numBytes);
+
+  if(requestMessage.to != 'O'){
+    return false;
+  }
+  
+  //Proof of concept test. Works.
+  if(requestMessage.locked && requestMessage.from == 'C'){
+    Serial.println("LOCKED COMMAND RECEIVED");
+  }
+  
 
   return true;
 }
