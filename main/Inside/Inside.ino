@@ -9,9 +9,9 @@
  * UIN : 661040904                         *
  * NetID : ekrup2                          *
  *******************************************
- * Developer 2: AJ Williams                *
- * UIN : 650968054                         *
- * NetID : awill276                        *
+ * Developer 2: Michael Cali               *
+ * UIN : 664777671                         *
+ * NetID : mcali3                          *
  *******************************************/
 
 struct Message{
@@ -25,12 +25,16 @@ struct Message{
     bool unlocked;
 };
 
+struct AccelStats{
+  float x,y,z = 0.0;
+};
+
 
 #include <SoftwareSerial.h>
 
 const int SERIAL_BAUD = 115200;
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
+unsigned long interval = 0;  // the last time the output pin was toggled
+unsigned long debounceDelay = 10000;    // the debounce time; increase if the output flickers
 int buttonPin = 9;
 unsigned long interval = millis();
 int delayTime = 500;
@@ -39,6 +43,8 @@ int READ_BUFFER_SIZE = sizeof(Message);
 int lastButtonState = HIGH;
 int buttonInput;
 const int SIZE = 20;
+AccelStats baseAccel, currentAccel;
+
 
 
 SoftwareSerial mySerial(2, 3);
@@ -54,6 +60,14 @@ void setup() {
   pinMode(buttonPin, INPUT);
   Serial.println("working?");
   mySerial.println("working?");
+  baseAccel.x = 0.0; // TODO: Set baseline valus to first read values on setup or a pre-determined set after we have found what that is
+  baseAccel.y = 0.0;
+  baseAccel.z = 0.0;
+
+  currentAccel.x = 0.0; // TODO: Set values to current live read in values
+  currentAccel.y = 0.0;
+  currentAccel.z = 0.0;
+
 
   //TODO: Begin LCD and other modules
 }
@@ -87,7 +101,7 @@ void loop() {
     Message requestMessage;
     if (handleInput(readBuf, numBytes, requestMessage)) {
       if (debug) { Serial.println("Input handling success!");}
-      
+
     } else {
       if (debug) {
         Serial.println("Input handling failure!");
@@ -95,44 +109,37 @@ void loop() {
     }
   }
   
-  int reading = digitalRead(buttonPin);
-  // If the state has changed
-  if (reading != lastButtonState) {
-    // reset the debouncing timer to make the next if statement wait 50ms
-    lastDebounceTime = millis();
-  }
+ 
 
   Message response;
   bool send = false;
   //int reading = digitalRead(buttonPin);
 
-  // will hit the condition every delay of 100ms if lastDebounceTime was updated. If not, will hit the condition real-time
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    // if the button state has changed, update the current input
-    if (reading != buttonInput) {
-      // Set button input after the delay from a bounce
-      buttonInput = reading;
-
-      // If current input is HIGH, increase counter and update LEDs
-      if (buttonInput == LOW) {
-        // When Button is HIGH or Pressed
+  // Will check every debounce delay (currentl 10s) and if message is successfully prepared, and we confirm the door is moving, send doo
+  // TODO: Figure out if we want to send this alert every tick or only when receiving a message from the HUB. This current setup is for every tick.
+  if ((millis() - interval) > debounceDelay) {
+        interval = millis();
         if(debug) {
-          Serial.println("finished Serial");
+          Serial.println("Accel Check Tick");
           //mySerial.println("finished mySerial");
         }
         send = prepareMessage(response);
-    
-      }
-    }
-  }
-  lastButtonState = reading;
-
-  if(send){
+        if(send && checkIfMoving()){
+          response.isMoving = true;
+          mySerial.write((byte*)&response, SIZE);
+          Serial.println("IS MOVING WRITTEN!");
+      }/*else if (send && !checkIfMoving()){ // Probably dont need this else if as we really only care about writing when we ARE moving.
+    response.isMoving = false;
     mySerial.write((byte*)&response, SIZE);
-    Serial.println("RESPONSE WRITTEN!");
+    Serial.println("IS NOT MOVING WRITTEN!");
+  }*/ 
+    
   }
-  
+
+ 
 }
+
+
 
 bool prepareMessage(Message& response){
   response.locked = true;
@@ -159,5 +166,16 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
 
   memcpy(&requestMessage, buffer, numBytes);
 
+
+
   return true;
+}
+
+bool checkIfMoving(){
+  //Check if any of the xyz values are more than a set threshold
+  // TODO: Find the threshhold, currently its just 5 as a placeholder
+  if(currentAccel.x - baseAccel.x > 5 || currentAccel.y - baseAccel.y > 5 ||currentAccel.z - baseAccel.z > 5){
+    return true;
+  }
+  return false;
 }
