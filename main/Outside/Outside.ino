@@ -14,7 +14,11 @@
  * NetID : awill276                        *
  *******************************************/
 
-struct Message{
+#include <SoftwareSerial.h>
+#include <Keypad.h>  // keypad library
+#include <string.h> // needed for strcmp
+
+struct Message {
     byte to;
     byte from;
     int micValue;
@@ -25,152 +29,142 @@ struct Message{
     bool unlocked;
 };
 
-
-#include <SoftwareSerial.h>
-
 const int SERIAL_BAUD = 115200;
-unsigned long lastDebounceTime = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 50;    // the debounce time; increase if the output flickers
-int buttonPin = 9;
-unsigned long interval = millis();
-int delayTime;
-bool debug;
-int READ_BUFFER_SIZE = sizeof(Message);
-int lastButtonState;
-int buttonInput;
-const int SIZE = 20;
+const int MIC_PIN  = A0;  // must use analog input
+const int IR_PIN   = 4;   
+const int PIR_PIN  = 5;   // motion sensor
 
+const byte ROWS = 4;
+const byte COLS = 4;
+
+char keys[ROWS][COLS] = { // 2d array for keypad
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+
+byte rowPins[ROWS] = {6, 7, 8, 9}; // row pins
+byte colPins[COLS] = {10, 11, 12, 13}; // column pins
+
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+char pinBuffer[5] = "";  // stores the keys that have been entered 
+byte pinIndex = 0; // how many digitis have been entered
+
+unsigned long lastDebounceTime = 0;
+const unsigned long debounceDelay = 50;
+const int buttonPin = 9;  
+int lastButtonState = HIGH;
+int buttonInput = HIGH;
+
+const size_t SIZE = sizeof(Message);
 
 SoftwareSerial mySerial(2, 3);
+bool debug = false; // CHANGE TO TRUE TO DEBUG
 
-long tick;
-
-/*PURPOSE: */
 void setup() {
-  // put your setup code here, to run once:
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
-  tick = millis();
-  pinMode(buttonPin, INPUT);
-  Serial.println("working?");
-  mySerial.println("working?");
-  debug = false;
-  lastButtonState = HIGH;
-  delayTime = 500;
 
-  //TODO: Begin LCD and other modules
+  pinMode(buttonPin, INPUT);
+  pinMode(IR_PIN, INPUT);
+  pinMode(PIR_PIN, INPUT);
+  // mic pin is automatically a analog input by default
+
+  //Serial.println("working?");
+  //mySerial.println("working?");
 }
 
 void loop() {
-  //Check if data is available
-  //Serial.println("testing if its working");
-  int numBytes;
-  if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
-    byte readBuf[SIZE];
-    //Populate the buffer
-    mySerial.readBytes(readBuf, SIZE);
+  Message response;
 
+  if (mySerial.available() >= SIZE && mySerial.peek() == 'O') { // handles the incoming hub messages
+    byte readBuf[SIZE];
+    mySerial.readBytes(readBuf, SIZE);
     Message requestMessage;
     if (handleInput(readBuf, SIZE, requestMessage)) {
-      if (debug) {
-        Serial.println("Input handling success!");
-        //do things with output
-      }
-    } else {
-      if (debug) {
-        Serial.println("Input handling failure!");
-      }
+      if (debug) Serial.println("Input handled");
     }
   }
 
-  if(numBytes = Serial.available() && Serial.peek() == 'O'){
-    byte readBuf[READ_BUFFER_SIZE];
-    Serial.readBytes(readBuf, sizeof(Message));
-
-    Message requestMessage;
-    if (handleInput(readBuf, numBytes, requestMessage)) {
-      if (debug) { Serial.println("Input handling success!");}
-      
-    } else {
-      if (debug) {
-        Serial.println("Input handling failure!");
-      }
-    }
-  }
-  
-  int reading = digitalRead(buttonPin);
-  // If the state has changed
+  int reading = digitalRead(buttonPin); // debounce for the keypad and lock button
   if (reading != lastButtonState) {
-    // reset the debouncing timer to make the next if statement wait 50ms
     lastDebounceTime = millis();
   }
 
-  Message response;
   bool send = false;
-  //int reading = digitalRead(buttonPin);
-
-  // will hit the condition every delay of 100ms if lastDebounceTime was updated. If not, will hit the condition real-time
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    // if the button state has changed, update the current input
+  if (millis() - lastDebounceTime > debounceDelay) {
     if (reading != buttonInput) {
-      // Set button input after the delay from a bounce
       buttonInput = reading;
-
-      // If current input is HIGH, increase counter and update LEDs
       if (buttonInput == LOW) {
-        // When Button is HIGH or Pressed
-        if(debug) {
-          Serial.println("finished Serial");
-          //mySerial.println("finished mySerial");
-        }
+        if (debug) Serial.println("Button pressed");
         send = prepareMessage(response);
-    
       }
     }
   }
   lastButtonState = reading;
 
-  if(send){
+  if (send) {
     mySerial.write((byte*)&response, SIZE);
-    Serial.println("RESPONSE WRITTEN!");
+    if (debug) Serial.println("Response sent");
   }
-  
 }
 
-bool prepareMessage(Message& response){
-  response.locked = true;
+bool prepareMessage(Message& response) {
+  response.micValue = analogRead(MIC_PIN);
+  response.validIR  = digitalRead(IR_PIN);
+  response.isMoving = digitalRead(PIR_PIN);
+  response.validPin = false;
+
+  char key = keypad.getKey(); // reads keypad digitis
+
+  if (key) {
+    if (key != '#') { // exit key
+      if (pinIndex < 4) { // add a digit if less than 4 characters so far
+        pinBuffer[pinIndex++] = key;
+      } 
+
+      if (pinIndex == 4) { // set to null when full
+        pinBuffer[pinIndex] = '\0';
+      } 
+    } 
+    
+    else {
+      if (pinIndex == 4 && strcmp(pinBuffer, "7085") == 0) { // if # is pressed check for our valid pin of 7085
+        response.validPin = true;
+      }
+      pinIndex = 0;
+      pinBuffer[0] = '\0';
+    }
+  }
+
+  // locked commands - WILL SET EVERYTHING TO LOCKED IF NOTHING VALID
+  response.locked = true; 
   response.unlocked = false;
   response.to = 'C';
   response.from = 'I';
-  response.micValue = -1;
-  response.isMoving = false;
-  response.validIR = false;
-  response.validPin = false;
-
   return true;
 }
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
-  //Read, then do something.
-  Serial.println("GOTBACK");
-  if (numBytes != SIZE) {
-    if (debug) {
-      Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
-    }
+  if (numBytes != (int)SIZE) {
     return false;
   }
 
-  memcpy(&requestMessage, buffer, numBytes);
+  memcpy(&requestMessage, buffer, SIZE);
 
-  if(requestMessage.to != 'O'){
+  if (requestMessage.to != 'O') {
     return false;
   }
-  
-  //Proof of concept test. Works.
-  if(requestMessage.locked && requestMessage.from == 'C'){
-    Serial.println("LOCKED COMMAND RECEIVED");
+
+  if (requestMessage.locked) {
+    Serial.println("LOCKED CMD RECEIVED");
   }
   
+  if (requestMessage.unlocked) {
+    Serial.println("UNLOCKED CMD RECEIVED");
 
-  return true;
+    return true;
+  } 
+
 }
