@@ -146,7 +146,7 @@ bool prepareMessage(Message& response){
   response.unlocked = false;
   response.to = 'C';
   response.from = 'I';
-  response.micValue = 500;
+  response.micValue = analogRead(MIC_PIN);
   response.isMoving = false;
   response.validIR = false;
   response.validPin = false;
@@ -166,6 +166,16 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
 
   memcpy(&requestMessage, buffer, numBytes);
 
+  if (requestMessage.to != 'O') {
+    return false;
+  }
+
+  if (requestMessage.locked) {
+    Serial.println("LOCKED CMD RECEIVED");
+  }
+  
+  if (requestMessage.unlocked) {
+    Serial.println("UNLOCKED CMD RECEIVED");
 
 
   return true;
