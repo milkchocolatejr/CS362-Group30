@@ -36,6 +36,11 @@ const int SERIAL_BAUD = 115200;
 unsigned long interval = 0;  // the last time the output pin was toggled
 unsigned long debounceDelay = 10000;    // the debounce time; increase if the output flickers
 int buttonPin = 9;
+// IR Setup
+const int irReceiverPin =7; //the SIG of receiver module attach to pin7 
+IRrecv irrecv(irReceiverPin); //Creates a variable of type IRrecv
+decode_results results;
+// End of IR Setup
 unsigned long interval = millis();
 int delayTime = 500;
 bool debug = true;
@@ -60,6 +65,7 @@ void setup() {
   pinMode(buttonPin, INPUT);
   Serial.println("working?");
   mySerial.println("working?");
+
   baseAccel.x = 0.0; // TODO: Set baseline valus to first read values on setup or a pre-determined set after we have found what that is
   baseAccel.y = 0.0;
   baseAccel.z = 0.0;
@@ -67,6 +73,9 @@ void setup() {
   currentAccel.x = 0.0; // TODO: Set values to current live read in values
   currentAccel.y = 0.0;
   currentAccel.z = 0.0;
+
+    irrecv.enableIRIn(); //enable ir receiver module 
+
 
 
   //TODO: Begin LCD and other modules
@@ -108,7 +117,6 @@ void loop() {
       }
     }
   }
-  
  
 
   Message response;
@@ -118,26 +126,53 @@ void loop() {
   // Will check every debounce delay (currentl 10s) and if message is successfully prepared, and we confirm the door is moving, send doo
   // TODO: Figure out if we want to send this alert every tick or only when receiving a message from the HUB. This current setup is for every tick.
   if ((millis() - interval) > debounceDelay) {
-        interval = millis();
-        if(debug) {
+    interval = millis();
+  // Start of IR code for every tick
+  if (irrecv.decode(&results)) //if the ir receiver module receiver data
+  { 
+    Serial.print("irCode: "); //print"irCode: " 
+    Serial.print(results.value, HEX); //print the value in hexdecimal 
+    Serial.print(", bits: "); //print" , bits: " 
+    Serial.println(results.bits); //print the bits
+    irrecv.resume(); // Receive the next value 
+  } 
+    // If we received a IR signal from the remote
+    if(results.value) // NOTE: change to "results.value == results.value" if we want to only check for power button press. Currently this accepts any IR value from the remote.
+    {
+      Serial.println("IR Signal Received!"); //print the bits
+      send = prepareMessage(response);
+      if(send){
+        response.validIR = true;
+        mySerial.write((byte*)&response, SIZE);
+        Serial.println("VALID IR SENT!");
+      }
+    }
+  //End of IR setup for every tick
+
+    // Beginning of accel tick code
+        if(debug) 
+        {
           Serial.println("Accel Check Tick");
-          //mySerial.println("finished mySerial");
         }
         send = prepareMessage(response);
+
+        // If prepare message was good and we confirm moving
         if(send && checkIfMoving()){
           response.isMoving = true;
           mySerial.write((byte*)&response, SIZE);
-          Serial.println("IS MOVING WRITTEN!");
-      }/*else if (send && !checkIfMoving()){ // Probably dont need this else if as we really only care about writing when we ARE moving.
-    response.isMoving = false;
-    mySerial.write((byte*)&response, SIZE);
-    Serial.println("IS NOT MOVING WRITTEN!");
-  }*/ 
+          Serial.println("IS MOVING SENT!");
+        }
+        /*
+      else if (send && !checkIfMoving()){ // Probably dont need this else if as we really only care about writing when we ARE moving.
+        response.isMoving = false;
+        mySerial.write((byte*)&response, SIZE);
+       Serial.println("IS NOT MOVING WRITTEN!");
+      }*/ 
+
+    // End of accel tick dode
     
   }
-
- 
-}
+} // End of loop
 
 
 
