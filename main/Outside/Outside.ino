@@ -15,156 +15,271 @@
  *******************************************/
 
 #include <SoftwareSerial.h>
-#include <Keypad.h>  // keypad library
-#include <string.h> // needed for strcmp
+#include <string.h>    
+#include <IRremote.h>
 
 struct Message {
-    byte to;
-    byte from;
-    int micValue;
-    int validIR;
-    bool validPin;
-    bool isMoving;
-    bool locked;
-    bool unlocked;
+  byte to;
+  byte from;
+  int micValue;
+  int validIR;
+  bool validPin;
+  bool isMoving;
+  bool locked;
+  bool unlocked;
 };
 
+// must match control hub SIZE (20 bytes)
+const size_t SIZE = 20;
 const int SERIAL_BAUD = 115200;
-const int MIC_PIN  = A0;  // must use analog input
-const int IR_PIN   = 4;   
-const int PIR_PIN  = 5;   // motion sensor
+const int MIC_PIN = A0; // analog mic input - not used but needed for struct structure
+const int IR_PIN = 12; 
+const int PIR_PIN = 5; // PIR motion sensor - not used but needed for struct structure
 
-const byte ROWS = 4;
-const byte COLS = 4;
+const int buttonPins[4] = {5, 4, 3, 2}; // pins for buttons
+const int ledPins[4] = {11,10, 9, 8}; // leds corresponding to button pins
 
-char keys[ROWS][COLS] = { // 2d array for keypad
-  {'1','2','3','A'},
-  {'4','5','6','B'},
-  {'7','8','9','C'},
-  {'*','0','#','D'}
-};
+const unsigned long debounceDelay = 50; // ms
+int buttonState[4] = {LOW, LOW, LOW, LOW};
+int lastReading [4] = {LOW, LOW, LOW, LOW};
+unsigned long lastDebounceTime[4] = {0, 0, 0, 0};
 
-byte rowPins[ROWS] = {6, 7, 8, 9}; // row pins
-byte colPins[COLS] = {10, 11, 12, 13}; // column pins
+const int correctCode[4] = {1, 2, 3, 4}; // correct passcode corresponding to buttons
+int codeSequence[4];
+int codeIndex = 0;
 
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
-char pinBuffer[5] = "";  // stores the keys that have been entered 
-byte pinIndex = 0; // how many digitis have been entered
+unsigned long irWindowStart = 0;
+int irPressCount = 0;
+const unsigned long irWindowDuration = 15000; // ms
 
-unsigned long lastDebounceTime = 0;
-const unsigned long debounceDelay = 50;
-const int buttonPin = 9;  
-int lastButtonState = HIGH;
-int buttonInput = HIGH;
+IRrecv irrecv(IR_PIN); // IR receiver setup
+decode_results results;
 
-const size_t SIZE = sizeof(Message);
+bool unlocked = false; // unlocked state flag
 
 SoftwareSerial mySerial(2, 3);
-bool debug = false; // CHANGE TO TRUE TO DEBUG
+bool debug = false; // set true for debug prints
+
+bool handleInput(byte* buffer, int numBytes, Message& requestMessage); // function definitions
+void printMessage(const Message& m);
 
 void setup() {
-  mySerial.begin(SERIAL_BAUD);
-  Serial.begin(SERIAL_BAUD);
+    mySerial.begin(SERIAL_BAUD);
+    Serial.begin(SERIAL_BAUD);
 
-  pinMode(buttonPin, INPUT);
-  pinMode(IR_PIN, INPUT);
-  pinMode(PIR_PIN, INPUT);
-  // mic pin is automatically a analog input by default
+    for (int i = 0; i < 4; i++) { // led pin configurations 
+        pinMode(buttonPins[i], INPUT);
+        pinMode(ledPins[i], OUTPUT);
+        digitalWrite(ledPins[i], LOW);
+    }
 
-  //Serial.println("working?");
-  //mySerial.println("working?");
+    pinMode(IR_PIN, INPUT);
+    pinMode(PIR_PIN, INPUT);
+
+    irrecv.enableIRIn(); // start IR receiver
 }
 
 void loop() {
-  Message response;
+    Message response;
+    unsigned long now = millis();
 
-  if (mySerial.available() >= SIZE && mySerial.peek() == 'O') { // handles the incoming hub messages
-    byte readBuf[SIZE];
-    mySerial.readBytes(readBuf, SIZE);
-    Message requestMessage;
-    if (handleInput(readBuf, SIZE, requestMessage)) {
-      if (debug) Serial.println("Input handled");
+    if (mySerial.available() >= SIZE && mySerial.peek() == 'O') { // handles incoming form control hub
+        byte readBuf[SIZE];
+        mySerial.readBytes(readBuf, SIZE);
+        Message requestMessage;
+        if (handleInput(readBuf, SIZE, requestMessage)) {
+            if (debug) {
+                Serial.println("Input handled");
+            }
+        }
     }
-  }
 
-  int reading = digitalRead(buttonPin); // debounce for the keypad and lock button
-  if (reading != lastButtonState) {
-    lastDebounceTime = millis();
-  }
+    for (int i = 0; i < 4; i++) { // handles the button code entry and LED feedback
+        int reading = digitalRead(buttonPins[i]);
 
-  bool send = false;
-  if (millis() - lastDebounceTime > debounceDelay) {
-    if (reading != buttonInput) {
-      buttonInput = reading;
-      if (buttonInput == LOW) {
-        if (debug) Serial.println("Button pressed");
-        send = prepareMessage(response);
-      }
+        if (reading != lastReading[i]) {
+            lastDebounceTime[i] = now;
+        }
+
+        if (now - lastDebounceTime[i] > debounceDelay) {
+            if (reading != buttonState[i]) {
+                buttonState[i] = reading;
+                if (buttonState[i] == HIGH) {
+                    if (unlocked) { // resets on any button if already unlocked
+                        for (int j = 0; j < 4; j++) {
+                            digitalWrite(ledPins[j], LOW);
+                        }
+                        unlocked = false;
+                        codeIndex = 0;
+                        Serial.println("Reset Pin");
+                        continue; // does not print struct on the reset
+                    }
+
+                    digitalWrite(ledPins[i], HIGH); // flashes led
+                    {
+                        unsigned long waitStart = millis();
+                        while (millis() - waitStart < 100) {
+                        }
+                    }
+                    digitalWrite(ledPins[i], LOW);
+
+                    codeSequence[codeIndex++] = i + 1; // records the press
+
+                    if (codeIndex >= 4) { // once 4 presses check if its valid
+                        codeIndex = 0;
+                        bool correct = true;
+                        for (int k = 0; k < 4; k++) {
+                            if (codeSequence[k] != correctCode[k]) {
+                                correct = false;
+                                break;
+                            }
+                        }
+
+                        response.micValue = analogRead(MIC_PIN);
+                        response.validIR = digitalRead(IR_PIN);
+                        response.isMoving = digitalRead(PIR_PIN);
+                        response.validPin = correct;
+                        response.locked = !correct;
+                        response.unlocked = correct;
+                        response.to = 'C';
+                        response.from = 'I';
+
+                        if (correct) { // blink the LEDs 3x then stay on 
+                            for (int b = 0; b < 3; b++) {
+                                for (int j = 0; j < 4; j++) {
+                                    digitalWrite(ledPins[j], HIGH);
+                                }
+                                {
+                                    unsigned long waitStart = millis();
+                                    while (millis() - waitStart < 100) {
+                                    }
+                                }
+                                for (int j = 0; j < 4; j++) {
+                                    digitalWrite(ledPins[j], LOW);
+                                }
+                                {
+                                    unsigned long waitStart = millis();
+                                    while (millis() - waitStart < 100) {
+                                    }
+                                }
+                            }
+                            for (int j = 0; j < 4; j++) {
+                                digitalWrite(ledPins[j], HIGH);
+                            }
+                            unlocked = true;
+                            Serial.println("Door Unlocked!");
+                            printMessage(response);
+                        } 
+                        else { // wrong code → turn all LEDs off
+                            for (int j = 0; j < 4; j++) {
+                                digitalWrite(ledPins[j], LOW);
+                            }
+                            Serial.println("Door Locked!");
+                            printMessage(response);
+                        }
+
+                        mySerial.write((byte*)&response, SIZE); // send struct no matter what
+                        if (debug) {
+                            Serial.println("Response sent");
+                        }
+                    }
+                }
+            }
+        }
+        lastReading[i] = reading;
     }
-  }
-  lastButtonState = reading;
 
-  if (send) {
-    mySerial.write((byte*)&response, SIZE);
-    if (debug) Serial.println("Response sent");
-  }
+    if (irrecv.decode(&results)) { // handles IR presses for unlock
+        irrecv.resume();
+        if (!unlocked) {
+            if (irWindowStart == 0 || now - irWindowStart > irWindowDuration) {
+                irWindowStart = now;
+                irPressCount = 1;
+            } 
+            else {
+                irPressCount++;
+            }
+
+            if (debug) {
+                Serial.print("IR press #");
+                Serial.println(irPressCount);
+            }
+            if (irPressCount >= 7) { // populate struct for IR unlock
+                response.micValue  = analogRead(MIC_PIN);
+                response.validIR   = 1;
+                response.isMoving  = digitalRead(PIR_PIN);
+                response.validPin  = false;
+                response.locked    = false;
+                response.unlocked  = true;
+                response.to        = 'C';
+                response.from      = 'I';
+
+                for (int b = 0; b < 3; b++) { // blink all LEDs 3× then stay on
+                    for (int j = 0; j < 4; j++) {
+                        digitalWrite(ledPins[j], HIGH);
+                    }
+                    {
+                        unsigned long waitStart = millis();
+                        while (millis() - waitStart < 100) {
+                        }
+                    }
+                    for (int j = 0; j < 4; j++) {
+                        digitalWrite(ledPins[j], LOW);
+                    }
+                    {
+                        unsigned long waitStart = millis();
+                        while (millis() - waitStart < 100) {
+                        }
+                    }
+                }
+
+                for (int j = 0; j < 4; j++) {
+                    digitalWrite(ledPins[j], HIGH);
+                }
+
+                unlocked = true;
+                Serial.println("Door Unlocked!");
+                printMessage(response);
+
+                mySerial.write((byte*)&response, SIZE);
+                if (debug) {
+                    Serial.println("IR unlock sent");
+                }
+            }
+        }
+    }
 }
 
-bool prepareMessage(Message& response) {
-  response.micValue = analogRead(MIC_PIN);
-  response.validIR  = digitalRead(IR_PIN);
-  response.isMoving = digitalRead(PIR_PIN);
-  response.validPin = false;
+void printMessage(const Message& m) {
+    Serial.print("Message => ");
+    Serial.print("to="); Serial.print((char)m.to); Serial.print(", ");
+    Serial.print("from="); Serial.print((char)m.from); Serial.print(", ");
+    Serial.print("micValue=");Serial.print(m.micValue); Serial.print(", ");
+    Serial.print("validIR="); Serial.print(m.validIR); Serial.print(", ");
+    Serial.print("validPin=");Serial.print(m.validPin); Serial.print(", ");
+    Serial.print("isMoving=");Serial.print(m.isMoving); Serial.print(", ");
+    Serial.print("locked="); Serial.print(m.locked); Serial.print(", ");
+    Serial.print("unlocked=");Serial.println(m.unlocked);
+}
 
-  char key = keypad.getKey(); // reads keypad digitis
+bool handleInput(byte* buffer, int numBytes, Message& requestMessage) { 
+    if (numBytes != (int)SIZE) {
+        return false;
+    }
 
-  if (key) {
-    if (key != '#') { // exit key
-      if (pinIndex < 4) { // add a digit if less than 4 characters so far
-        pinBuffer[pinIndex++] = key;
-      } 
+    memcpy(&requestMessage, buffer, SIZE);
 
-      if (pinIndex == 4) { // set to null when full
-        pinBuffer[pinIndex] = '\0';
-      } 
-    } 
+    if (requestMessage.to != 'O') {
+        return false;
+    }
+
+    if (requestMessage.locked) {
+        Serial.println("LOCKED CMD RECEIVED");
+    }
     
-    else {
-      if (pinIndex == 4 && strcmp(pinBuffer, "7085") == 0) { // if # is pressed check for our valid pin of 7085
-        response.validPin = true;
-      }
-      pinIndex = 0;
-      pinBuffer[0] = '\0';
+    if (requestMessage.unlocked) {
+        Serial.println("UNLOCKED CMD RECEIVED");
+        return true;
     }
-  }
-
-  // locked commands - WILL SET EVERYTHING TO LOCKED IF NOTHING VALID
-  response.locked = true; 
-  response.unlocked = false;
-  response.to = 'C';
-  response.from = 'I';
-  return true;
-}
-
-bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
-  if (numBytes != (int)SIZE) {
     return false;
-  }
-
-  memcpy(&requestMessage, buffer, SIZE);
-
-  if (requestMessage.to != 'O') {
-    return false;
-  }
-
-  if (requestMessage.locked) {
-    Serial.println("LOCKED CMD RECEIVED");
-  }
-  
-  if (requestMessage.unlocked) {
-    Serial.println("UNLOCKED CMD RECEIVED");
-
-    return true;
-  } 
-
 }
