@@ -29,8 +29,7 @@ struct Message {
   bool unlocked;
 };
 
-// must match control hub SIZE (20 bytes)
-const size_t SIZE = 20;
+const size_t SIZE = 20; // matches control hub size which is 20 bytes
 const int SERIAL_BAUD = 115200;
 const int MIC_PIN = A0; // analog mic input - not used but needed for struct structure
 const int IR_PIN = 12; 
@@ -111,6 +110,8 @@ void loop() {
                         }
                         unlocked = false;
                         codeIndex = 0;
+                        irPressCount = 0;
+                        irWindowStart = 0;
                         Serial.println("Reset Pin");
                         continue; // does not print struct on the reset
                     }
@@ -167,7 +168,7 @@ void loop() {
                                 digitalWrite(ledPins[j], HIGH);
                             }
                             unlocked = true;
-                            Serial.println("Door Unlocked!");
+                            Serial.println("Door Unlocked! Keypad");
                             printMessage(response);
                         } 
                         else { // wrong code → turn all LEDs off
@@ -238,7 +239,7 @@ void loop() {
                 }
 
                 unlocked = true;
-                Serial.println("Door Unlocked!");
+                Serial.println("Door Unlocked! IR sensor");
                 printMessage(response);
 
                 mySerial.write((byte*)&response, SIZE);
