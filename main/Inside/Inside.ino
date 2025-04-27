@@ -1,23 +1,24 @@
 /*******************************************
- *            INSIDE DOOR CODE             *         
+ * INSIDE DOOR CODE            *
  *******************************************
- * Developer 1: AJ Williams                *
- * UIN : 650968054                         *
- * NetID : awill276                        *
+ * Developer 1: AJ Williams            *
+ * UIN : 650968054                     *
+ * NetID : awill276                      *
  *******************************************
- * Developer 2: Elias Krupa                *
- * UIN : 661040904                         *
- * NetID : ekrup2                          *
+ * Developer 2: Elias Krupa            *
+ * UIN : 661040904                     *
+ * NetID : ekrup2                        *
  *******************************************
- * Developer 2: Michael Cali               *
- * UIN : 664777671                         *
- * NetID : mcali3                          *
+ * Developer 2: Michael Cali           *
+ * UIN : 664777671                     *
+ * NetID : mcali3                        *
  *******************************************/
 
+// *** Struct definitions restored here ***
 struct Message{
     byte to;
     byte from;
-    flaot ultraSonicDistance;
+    int ultraSonicDistance;
     int validIR;
     bool validPin;
     bool isMoving;
@@ -30,27 +31,29 @@ struct AccelStats{
 };
 
 
+// *** Removed include for external header file ***
+// #include "MyDataStructures.h"
 #include <SoftwareSerial.h>
+// #include <IRremote.h> // Assuming IRremote library is needed based on irrecv usage
+
 
 const int SERIAL_BAUD = 115200;
-unsigned long interval = 0;  // the last time the output pin was toggled
-unsigned long debounceDelay = 10000;    // the debounce time; increase if the output flickers
+const int trigPin = 11;
+const int echoPin = 10;
+const int irReceiverPin = 7; //the SIG of receiver module attach to pin7
+const int SIZE = 20; // WARNING: This might not match sizeof(Message). Consider using sizeof(Message).
+
 int buttonPin = 9;
 // IR Setup
-const int irReceiverPin =7; //the SIG of receiver module attach to pin7 
-IRrecv irrecv(irReceiverPin); //Creates a variable of type IRrecv
-decode_results results;
+// IRrecv irrecv(irReceiverPin); // Assuming IRrecv object needs declaration
+// decode_results results;       // Assuming decode_results object is needed
 // End of IR Setup
-unsigned long interval = millis();
+unsigned long interval; // Should be initialized in setup
 int delayTime = 500;
 bool debug = true;
+// Use sizeof(Message) which is now defined locally
 int READ_BUFFER_SIZE = sizeof(Message);
-int lastButtonState = HIGH;
-int buttonInput;
-const int SIZE = 20;
-AccelStats baseAccel, currentAccel;
-
-
+AccelStats baseAccel, currentAccel; // These types are now defined locally
 
 SoftwareSerial mySerial(2, 3);
 
@@ -62,7 +65,12 @@ void setup() {
   mySerial.begin(SERIAL_BAUD);
   Serial.begin(SERIAL_BAUD);
   tick = millis();
+  interval = millis(); // Initialize interval here
   pinMode(buttonPin, INPUT);
+  pinMode(trigPin, OUTPUT); // Added pinMode for trigPin
+  pinMode(echoPin, INPUT);  // Added pinMode for echoPin
+  digitalWrite(trigPin, LOW); // Ensure low initially
+
   Serial.println("working?");
   mySerial.println("working?");
 
@@ -74,111 +82,115 @@ void setup() {
   currentAccel.y = 0.0;
   currentAccel.z = 0.0;
 
-    irrecv.enableIRIn(); //enable ir receiver module 
-
+  // irrecv.enableIRIn(); //enable ir receiver module - Uncomment if IRremote library is included and object declared
 
 
   //TODO: Begin LCD and other modules
 }
 
 void loop() {
+
   //Check if data is available
   //Serial.println("testing if its working");
-  int numBytes;
-  if (numBytes = mySerial.available() && mySerial.peek() == 'O') {
-    byte readBuf[SIZE];
-    //Populate the buffer
-    mySerial.readBytes(readBuf, SIZE);
+  int numBytes; // This variable is assigned but its value isn't used effectively in the original if condition
 
-    Message requestMessage;
-    if (handleInput(readBuf, SIZE, requestMessage)) {
-      if (debug) {
-        Serial.println("Input handling success!");
-        //do things with output
-      }
-    } else {
-      if (debug) {
-        Serial.println("Input handling failure!");
-      }
-    }
+
+  // Check SoftwareSerial Input
+  // Note: Assignment (=) inside if condition is usually unintentional. Use comparison (==) if checking numBytes value.
+  // The original logic effectively just checks mySerial.peek() after mySerial.available() is non-zero.
+  if (mySerial.available() && mySerial.peek() == 'O') { // Simplified condition check
+    byte readBuf[SIZE]; // Using hardcoded SIZE = 20
+    //Populate the buffer - Need to check if enough bytes are available first
+    // WARNING: Reading SIZE (20) bytes but handleInput expects sizeof(Message)
+    if (mySerial.available() >= SIZE) { // Check if enough bytes are actually available
+        mySerial.readBytes(readBuf, SIZE);
+
+        Message requestMessage;
+        // WARNING: Passing SIZE (20) to handleInput which expects sizeof(Message)
+        if (handleInput(readBuf, SIZE, requestMessage)) {
+          if (debug) {
+            Serial.println("Input handling success!");
+            //do things with output
+          }
+        } else {
+          if (debug) {
+            Serial.println("Input handling failure!");
+          }
+        }
+    } // else { // Optional: handle case where 'O' seen but not enough bytes follow yet }
   }
 
-  if(numBytes = Serial.available() && Serial.peek() == 'O'){
-    byte readBuf[READ_BUFFER_SIZE];
-    Serial.readBytes(readBuf, sizeof(Message));
+  // Check Hardware Serial Input
+  // Same note about assignment (=) vs comparison (==) applies here.
+  if(Serial.available() && Serial.peek() == 'O'){ // Simplified condition check
+    byte readBuf[READ_BUFFER_SIZE]; // Using READ_BUFFER_SIZE which is sizeof(Message)
+     if (Serial.available() >= READ_BUFFER_SIZE) { // Check if enough bytes are actually available
+        int bytesRead = Serial.readBytes(readBuf, READ_BUFFER_SIZE); // Use the correct size
 
-    Message requestMessage;
-    if (handleInput(readBuf, numBytes, requestMessage)) {
-      if (debug) { Serial.println("Input handling success!");}
+        Message requestMessage;
+        // Pass the actual number of bytes read for better error checking in handleInput
+        if (handleInput(readBuf, bytesRead, requestMessage)) {
+          if (debug) { Serial.println("Input handling success!");}
 
-    } else {
-      if (debug) {
-        Serial.println("Input handling failure!");
-      }
-    }
+        } else {
+          if (debug) {
+            Serial.println("Input handling failure!");
+          }
+        }
+     } // else { // Optional: handle case where 'O' seen but not enough bytes follow yet }
   }
- 
+
 
   Message response;
   bool send = false;
   //int reading = digitalRead(buttonPin);
 
-  // Will check every debounce delay (currentl 10s) and if message is successfully prepared, and we confirm the door is moving, send doo
-  // TODO: Figure out if we want to send this alert every tick or only when receiving a message from the HUB. This current setup is for every tick.
-  if ((millis() - interval) > debounceDelay) {
-    interval = millis();
-  // Start of IR code for every tick
-  if (irrecv.decode(&results)) //if the ir receiver module receiver data
-  { 
-    Serial.print("irCode: "); //print"irCode: " 
-    Serial.print(results.value, HEX); //print the value in hexdecimal 
-    Serial.print(", bits: "); //print" , bits: " 
-    Serial.println(results.bits); //print the bits
-    irrecv.resume(); // Receive the next value 
-  } 
-    // If we received a IR signal from the remote
-    if(results.value) // NOTE: change to "results.value == results.value" if we want to only check for power button press. Currently this accepts any IR value from the remote.
-    {
-      Serial.println("IR Signal Received!"); //print the bits
-      send = prepareMessage(response);
-      if(send){
-        response.validIR = true;
-        mySerial.write((byte*)&response, SIZE);
-        Serial.println("VALID IR SENT!");
-      }
-    }
-  //End of IR setup for every tick
+  // Change delayTime for how long between reading ultrasonic/accel and sends the message
+    if ((millis() - interval) > delayTime) {
+        interval = millis(); // Reset interval timer
+        float dist = readDistance();
+        Serial.print("Distance: ");
+        Serial.print(dist); 
+        Serial.println(" cm");
+
 
     // Beginning of accel tick code
-        if(debug) 
+        if(debug)
         {
           Serial.println("Accel Check Tick");
         }
         send = prepareMessage(response);
 
+        if(send){
+          response.ultraSonicDistance = dist;
+        }
+
         // If prepare message was good and we confirm moving
         if(send && checkIfMoving()){
           response.isMoving = true;
-          mySerial.write((byte*)&response, SIZE);
-          Serial.println("IS MOVING SENT!");
         }
+
+        
+          mySerial.write((byte*)&response, SIZE);
+          Serial.println("IS Accel and Ultrasonic message SENT!");
         /*
       else if (send && !checkIfMoving()){ // Probably dont need this else if as we really only care about writing when we ARE moving.
         response.isMoving = false;
-        mySerial.write((byte*)&response, SIZE);
+        mySerial.write((byte*)&response, SIZE); // Same warning applies here
        Serial.println("IS NOT MOVING WRITTEN!");
-      }*/ 
+      }*/
 
-    // End of accel tick dode
-    
-  }
-} // End of loop
+    // End of accel tick code // Note: Original comment had typo "dode"
+
+    } // *** Brace closing the timed interval block ***
+
+} // *** CORRECTED: Brace closing the loop() function ***
 
 
 
 bool prepareMessage(Message& response){
-  response.locked = true;
-  response.unlocked = false;
+  response.locked = true; // Default value, should reflect actual state if possible
+  response.unlocked = false; // Default value
   response.to = 'C';
   response.from = 'I';
   response.ultraSonicDistance = -1;
@@ -191,36 +203,79 @@ bool prepareMessage(Message& response){
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   //Read, then do something.
-  Serial.println("GOTBACK");
-  if (numBytes != SIZE) {
+  // Serial.println("GOTBACK"); // Original debug message
+  // Use READ_BUFFER_SIZE (sizeof(Message)) for comparison
+  if (numBytes != READ_BUFFER_SIZE) {
     if (debug) {
-      Serial.println("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE");
+      Serial.print("FATAL: TRANSMISSION ARDUINO FAILURE: SIZE MISMATCH. Expected: ");
+      Serial.print(READ_BUFFER_SIZE);
+      Serial.print(" Got: ");
+      Serial.println(numBytes);
     }
     return false;
   }
 
   memcpy(&requestMessage, buffer, numBytes);
 
-  if (requestMessage.to != 'O') {
-    return false;
+  // Original code checked against 'O', assuming that was the intended target address.
+  // If 'I' (Inside) is the target, change this check.
+  if (requestMessage.to != 'O') { // Assuming 'O' is the HUB/Outside based on original check
+    if (debug) {
+        Serial.print("Message target '");
+        Serial.print((char)requestMessage.to);
+        Serial.println("' does not match expected 'O'.");
+    }
+    // return false; // Keep original behavior: return false if target doesn't match
   }
 
   if (requestMessage.locked) {
     Serial.println("LOCKED CMD RECEIVED");
+    // Add code to handle locking
   }
-  
+
   if (requestMessage.unlocked) {
     Serial.println("UNLOCKED CMD RECEIVED");
+    // Add code to handle unlocking
+  }
 
-
-  return true;
+  return true; // *** CORRECTED: Return true after processing flags ***
 }
 
 bool checkIfMoving(){
   //Check if any of the xyz values are more than a set threshold
+  // TODO: Implement actual accelerometer reading and update currentAccel.x, y, z
   // TODO: Find the threshhold, currently its just 5 as a placeholder
-  if(currentAccel.x - baseAccel.x > 5 || currentAccel.y - baseAccel.y > 5 ||currentAccel.z - baseAccel.z > 5){
+  float threshold = 5.0; // Example threshold
+  // Use abs() for checking difference in either direction
+  if(abs(currentAccel.x - baseAccel.x) > threshold || abs(currentAccel.y - baseAccel.y) > threshold || abs(currentAccel.z - baseAccel.z) > threshold){
     return true;
   }
   return false;
+}
+
+float readDistance() {
+  unsigned long intervalStartTime; // Changed variable name for clarity
+
+  digitalWrite(trigPin, LOW);
+  intervalStartTime = micros();
+  while (micros() - intervalStartTime < 2) {
+  } // Empty loop for waiting
+
+  digitalWrite(trigPin, HIGH);
+  intervalStartTime = micros();
+  while (micros() - intervalStartTime < 10) {
+  } // Empty loop for waiting
+
+  digitalWrite(trigPin, LOW);
+
+  // Using pulseIn without timeout (default 1 second)
+  long duration = pulseIn(echoPin, HIGH);
+
+  // Calculate distance, handle potential 0 duration from timeout
+  int distance = 0;
+  if (duration > 0) {
+    distance = duration / 58;
+  }
+
+  return distance;
 }

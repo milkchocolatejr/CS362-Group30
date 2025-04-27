@@ -21,7 +21,7 @@
 struct Message {
   byte to;
   byte from;
-  float ultraSonicDistance;
+  int ultraSonicDistance;
   int validIR;
   bool validPin;
   bool isMoving;

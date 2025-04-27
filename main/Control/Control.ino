@@ -21,7 +21,7 @@
 struct Message{
     byte to; 
     byte from;
-    float ultraSonicDistance;
+    int ultraSonicDistance;
     int validIR;
     bool validPin;
     bool isMoving;
@@ -127,7 +127,7 @@ bool prepareMessage(Message& command, char recipient){
   command.to = recipient;
   command.locked = locked;
   command.unlocked = !locked;
-  command.ultraSonicDistance = -1.0;
+  command.ultraSonicDistance = -1;
   command.isMoving = false;
   command.validIR = false;
   command.validPin = false;
