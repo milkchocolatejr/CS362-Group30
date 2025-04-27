@@ -1,7 +1,7 @@
 
 struct Message{
     int from;
-    int micValue;
+    float ultraSonicDistance;
     int validIR;
     int validRFID;
     bool validPin;
