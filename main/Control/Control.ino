@@ -21,7 +21,7 @@
 struct Message{
     byte to; 
     byte from;
-    int micValue;
+    float ultraSonicDistance;
     int validIR;
     bool validPin;
     bool isMoving;
@@ -127,7 +127,7 @@ bool prepareMessage(Message& command, char recipient){
   command.to = recipient;
   command.locked = locked;
   command.unlocked = !locked;
-  command.micValue = -1;
+  command.ultraSonicDistance = -1.0;
   command.isMoving = false;
   command.validIR = false;
   command.validPin = false;
@@ -175,13 +175,13 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
     if(debug){Serial.println("Casual event hit.");}
     if(requestMessage.from == 'O'){
       bottomLine = String("NOISE LEVEL ");
-      if(requestMessage.micValue < 500){
+      if(requestMessage.ultraSonicDistance < 500){
         bottomLine += "LOW! ";
       }
       else{
         bottomLine += "HIGH! ";
       }
-      setNoiseLED(requestMessage.micValue);
+      setNoiseLED(requestMessage.ultraSonicDistance);
     }
     if(requestMessage.from == 'I'){
       bottomLine = String("DOOR ");

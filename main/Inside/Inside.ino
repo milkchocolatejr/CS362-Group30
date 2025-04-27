@@ -17,7 +17,7 @@
 struct Message{
     byte to;
     byte from;
-    int micValue;
+    flaot ultraSonicDistance;
     int validIR;
     bool validPin;
     bool isMoving;
@@ -181,7 +181,7 @@ bool prepareMessage(Message& response){
   response.unlocked = false;
   response.to = 'C';
   response.from = 'I';
-  response.micValue = analogRead(MIC_PIN);
+  response.ultraSonicDistance = -1;
   response.isMoving = false;
   response.validIR = false;
   response.validPin = false;

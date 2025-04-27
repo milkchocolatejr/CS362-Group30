@@ -21,7 +21,7 @@
 struct Message {
   byte to;
   byte from;
-  int micValue;
+  float ultraSonicDistance;
   int validIR;
   bool validPin;
   bool isMoving;
@@ -136,7 +136,6 @@ void loop() {
                             }
                         }
 
-                        response.micValue = analogRead(MIC_PIN);
                         response.validIR = digitalRead(IR_PIN);
                         response.isMoving = digitalRead(PIR_PIN);
                         response.validPin = correct;
@@ -206,7 +205,6 @@ void loop() {
                 Serial.println(irPressCount);
             }
             if (irPressCount >= 7) { // populate struct for IR unlock
-                response.micValue  = analogRead(MIC_PIN);
                 response.validIR   = 1;
                 response.isMoving  = digitalRead(PIR_PIN);
                 response.validPin  = false;
@@ -255,7 +253,7 @@ void printMessage(const Message& m) {
     Serial.print("Message => ");
     Serial.print("to="); Serial.print((char)m.to); Serial.print(", ");
     Serial.print("from="); Serial.print((char)m.from); Serial.print(", ");
-    Serial.print("micValue=");Serial.print(m.micValue); Serial.print(", ");
+    Serial.print("ultraSonicDistance=");Serial.print(m.ultraSonicDistance); Serial.print(", ");
     Serial.print("validIR="); Serial.print(m.validIR); Serial.print(", ");
     Serial.print("validPin=");Serial.print(m.validPin); Serial.print(", ");
     Serial.print("isMoving=");Serial.print(m.isMoving); Serial.print(", ");
