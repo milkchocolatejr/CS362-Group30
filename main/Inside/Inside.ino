@@ -9,9 +9,9 @@
  * UIN : 661040904                         *
  * NetID : ekrup2                          *
  *******************************************
- * Developer 2: AJ Williams                *
- * UIN : 650968054                         *
- * NetID : awill276                        *
+ * Developer 3: Michael Cali               *
+ * UIN : 664777671                         *
+ * NetID : mcali3                          *
  *******************************************/
 
 
@@ -50,7 +50,7 @@ int buttonPin = 9;
 // IR Setup
 IRrecv irrecv(IR_PIN); // IR receiver setup
 decode_results results;
-bool unlocked = false; // unlocked state flag
+bool unlocked = true; // unlocked state flag
 unsigned long irWindowStart = 0;
 int irPressCount = 0;
 const unsigned long irWindowDuration = 15000; // ms
@@ -81,7 +81,7 @@ void setup() {
   Wire.begin();
   mpu.initialize();
 
-  if (!mpu.testConnection()) {
+  while(!mpu.testConnection()) {
     Serial.println("MPU6050 connection failed!");
   }
 
@@ -92,10 +92,10 @@ void setup() {
   accelY0 = mpu.getAccelerationY() / 16384.0;
   accelZ0 = mpu.getAccelerationZ() / 16384.0;
 
-  delay(1000);
   Serial.println("Calibration complete.");
 
   irrecv.enableIRIn(); // start IR receiver
+  delay(3000);
 }
 
 void loop() {
@@ -177,9 +177,6 @@ void loop() {
         
     }
 
-
-
-
   /////////////// 
   // END OF IR CODE
 
@@ -191,14 +188,14 @@ void loop() {
   // Change delayTime for how long between reading ultrasonic/accel and sends the message
     if ((millis() - interval) > delayTime) {
         interval = millis(); // Reset interval timer
-        float dist = readDistance();
-        Serial.print("Distance: ");
-        Serial.print(dist); 
-        Serial.println(" cm");
+       // float dist = readDistance();
+       // Serial.print("Distance: ");
+        //Serial.print(dist); 
+        //Serial.println(" cm");
 
         if(debug)
         {
-          Serial.println("Accel Check Tick");
+         // Serial.println("Accel Check Tick");
         }
         // Prepare default values
         send = prepareMessage(response);
@@ -206,22 +203,18 @@ void loop() {
         // Send either both ultrasonic and moving data if true or just ultrosonic. Default isMoving is fault from prepareMessage()
         if(send && checkIfMoving()){
             response.isMoving = true;
-            response.ultraSonicDistance = dist;
+            mySerial.write((byte*)&response, SIZE);
+            Serial.println("Accel Sent !");
+
         }
-        else if(send){
-            response.ultraSonicDistance = dist;
-        }
-          // Send the message and confirm in serial
-          mySerial.write((byte*)&response, SIZE);
-          Serial.println("IS Accel and Ultrasonic message SENT!");
-    } 
+      } 
 }
 
 
 
 bool prepareMessage(Message& response){
-  response.locked = true; // Default value, should reflect actual state if possible
-  response.unlocked = false; // Default value
+  response.locked = !unlocked; // Default value, should reflect actual state if possible
+  response.unlocked = unlocked; // Default value
   response.to = 'C';
   response.from = 'I';
   response.ultraSonicDistance = -1;
@@ -250,22 +243,19 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
 
   // Original code checked against 'O', assuming that was the intended target address.
   // If 'I' (Inside) is the target, change this check.
-  if (requestMessage.to != 'O') { // Assuming 'O' is the HUB/Outside based on original check
-    if (debug) {
-        Serial.print("Message target '");
-        Serial.print((char)requestMessage.to);
-        Serial.println("' does not match expected 'O'.");
-    }
-    // return false; // Keep original behavior: return false if target doesn't match
+  if (requestMessage.to != 'I') { // Assuming 'O' is the HUB/Outside based on original check
+    return false;
   }
 
   if (requestMessage.locked) {
     Serial.println("LOCKED CMD RECEIVED");
+    unlocked = false;
     // Add code to handle locking
   }
 
   if (requestMessage.unlocked) {
     Serial.println("UNLOCKED CMD RECEIVED");
+    unlocked = true;
     // Add code to handle unlocking
   }
 
@@ -285,11 +275,21 @@ bool checkIfMoving() {
   currentAccel.x = accelX;
   currentAccel.y = accelY;
   currentAccel.z = accelZ;
+  /*  Serial.println(accelX);
+        Serial.println(accelY);
+
+    Serial.println(accelZ);
+
+*/
 
   float deltaX = abs(accelX - accelX0);
   float deltaY = abs(accelY - accelY0);
   float deltaZ = abs(accelZ - accelZ0);
+  /*Serial.println(deltaX);
+    Serial.println(deltaY);
 
+  Serial.println(deltaZ);
+*/
   if (deltaX > motionThreshold || deltaY > motionThreshold || deltaZ > motionThreshold) {
     if (debug) {
       Serial.println("Movement detected!");
