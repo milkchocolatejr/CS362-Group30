@@ -57,6 +57,7 @@ long buzzerStart;
 
 //DEBUG FLAG
 bool debug = false;
+bool lcdDebug = false;
 
 //CALCULATION CONSTANTS
 const int READ_BUFFER_SIZE = 2048;
@@ -122,7 +123,7 @@ void loop() {
     updateLCD();
     lastTick = millis();
   }
-  if(millis() - buzzerStart > 200){
+  if(millis() - buzzerStart > 500){
     noTone(buzzerPin);
   }
 }
@@ -161,39 +162,30 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   if(requestMessage.locked || requestMessage.unlocked){
     if(requestMessage.locked && !locked){
       lock();
-      Message command;
-      char to = (requestMessage.from == 'I' ? 'O' : 'I');
-      prepareMessage(command, to);
-      customSerial.write((byte*)&command, SIZE);
-      Serial.println("Lock written to" + to );
+      Message command1;
+      Message command2;
+      prepareMessage(command1, 'I');
+      prepareMessage(command2, 'O');
+      customSerial.write((byte*)&command1, SIZE);
+      customSerial.write((byte*)&command2, SIZE);
     }
     else if(requestMessage.unlocked && locked){
       unlock();
-      Message command;
-      char to = (requestMessage.from == 'I' ? 'O' : 'I');
-      prepareMessage(command, to);
-      customSerial.write((byte*)&command, SIZE);
-      Serial.println("Unlock written to" + to );
+      Message command1;
+      Message command2;
+      prepareMessage(command1, 'I');
+      prepareMessage(command2, 'O');
+      customSerial.write((byte*)&command1, SIZE);
+      customSerial.write((byte*)&command2, SIZE);
     }
   }
   else{
-    if(debug){Serial.println("Casual event hit.");}
-    if(requestMessage.from == 'O'){
-      bottomLine = String("DISTANCE: ");
-      if(requestMessage.ultraSonicDistance < 500){
-        bottomLine += "CLOSE! ";
-      }
-      else{
-        bottomLine += "FAR! ";
-      }
-      setDistanceLED(requestMessage.ultraSonicDistance);
-    }
     if(requestMessage.from == 'I'){
-      bottomLine = String("DOOR ");
+      bottomLine = String("DOOR IS ");
       if(requestMessage.isMoving){
         bottomLine += " MOVING";
       }
-      else{
+      else if(!requestMessage.isMoving){
         bottomLine += " STATIONARY";
       }
     }
@@ -243,7 +235,7 @@ void updateLCD(){
   lcd.setCursor(0, 0);
   lcd.print(topDisplay);
     
-  if(debug){
+  if(debug && lcdDebug){
     Serial.println(topDisplay);
     Serial.println(botDisplay);
   }
@@ -276,7 +268,7 @@ void lock(){
   digitalWrite(lockedLED, HIGH);
   digitalWrite(unlockedLED, LOW);
   buzzerStart = millis();
-  digitalWrite(buzzerPin, 1000);
+  tone(buzzerPin, 1500);
   if(debug){Serial.println("LOCKED!");}
   topLine = "DOOR LOCKED";
 }
@@ -287,7 +279,7 @@ void unlock(){
   }
   locked = false;
   buzzerStart = millis();
-  digitalWrite(buzzerPin, 2000);
+  tone(buzzerPin, 1500);
   digitalWrite(lockedLED, LOW);
   digitalWrite(unlockedLED, HIGH);
   if(debug){Serial.println("UNLOCKED!");}
