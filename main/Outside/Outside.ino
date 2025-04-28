@@ -54,9 +54,9 @@ const unsigned long irWindowDuration = 15000; // ms
 IRrecv irrecv(IR_PIN); // IR receiver setup
 decode_results results;
 
-bool unlocked = false; // unlocked state flag
+bool unlocked = true; // unlocked state flag
 
-SoftwareSerial mySerial(2, 3);
+SoftwareSerial mySerial(6, 7);
 bool debug = false; // set true for debug prints
 
 bool handleInput(byte* buffer, int numBytes, Message& requestMessage); // function definitions
@@ -76,6 +76,7 @@ void setup() {
     pinMode(PIR_PIN, INPUT);
 
     irrecv.enableIRIn(); // start IR receiver
+    delay(3000);
 }
 
 void loop() {
