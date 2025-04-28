@@ -31,10 +31,6 @@ struct Message{
     bool unlocked;
 };
 
-struct AccelData {
-  float x, y, z;
-};
-AccelData currentAccel;
 
 float accelX0, accelY0, accelZ0;
 const float motionThreshold = 0.1; 
@@ -270,17 +266,6 @@ bool checkIfMoving() {
   float accelX = ax / 16384.0;
   float accelY = ay / 16384.0;
   float accelZ = az / 16384.0;
-
-  // Update currentAccel struct (OPTIONAL, if you need it elsewhere)
-  currentAccel.x = accelX;
-  currentAccel.y = accelY;
-  currentAccel.z = accelZ;
-  /*  Serial.println(accelX);
-        Serial.println(accelY);
-
-    Serial.println(accelZ);
-
-*/
 
   float deltaX = abs(accelX - accelX0);
   float deltaY = abs(accelY - accelY0);
