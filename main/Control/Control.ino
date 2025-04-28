@@ -1,5 +1,5 @@
 /*******************************************
- *             CONTOL HUB CODE             *         
+ *       CONTROL HUB CODE | Group 30       *
  *******************************************
  * Developer 1: AJ Williams                *
  * UIN : 650968054                         *

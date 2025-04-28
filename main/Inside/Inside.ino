@@ -1,17 +1,17 @@
 /*******************************************
- * INSIDE DOOR CODE            *
+ *       INSDIE DOOR CODE | Group 30       *
  *******************************************
- * Developer 1: AJ Williams            *
- * UIN : 650968054                     *
- * NetID : awill276                      *
+ * Developer 1: AJ Williams                *
+ * UIN : 650968054                         *
+ * NetID : awill276                        *
  *******************************************
- * Developer 2: Elias Krupa            *
- * UIN : 661040904                     *
- * NetID : ekrup2                        *
+ * Developer 2: Elias Krupa                *
+ * UIN : 661040904                         *
+ * NetID : ekrup2                          *
  *******************************************
- * Developer 2: Michael Cali           *
- * UIN : 664777671                     *
- * NetID : mcali3                        *
+ * Developer 2: AJ Williams                *
+ * UIN : 650968054                         *
+ * NetID : awill276                        *
  *******************************************/
 
 
