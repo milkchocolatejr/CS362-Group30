@@ -160,7 +160,7 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
       char to = (requestMessage.from == 'I' ? 'O' : 'I');
       prepareMessage(command, to);
       customSerial.write((byte*)&command, SIZE);
-      Serial.println("Written to" + to );
+      Serial.println("Lock written to" + to );
     }
     else if(requestMessage.unlocked && locked){
       unlock();
@@ -168,28 +168,28 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
       char to = (requestMessage.from == 'I' ? 'O' : 'I');
       prepareMessage(command, to);
       customSerial.write((byte*)&command, SIZE);
-      Serial.println("Written to" + to );
+      Serial.println("Unlock written to" + to );
     }
   }
   else{
     if(debug){Serial.println("Casual event hit.");}
     if(requestMessage.from == 'O'){
-      bottomLine = String("NOISE LEVEL ");
+      bottomLine = String("DISTANCE: ");
       if(requestMessage.ultraSonicDistance < 500){
-        bottomLine += "LOW! ";
+        bottomLine += "CLOSE! ";
       }
       else{
-        bottomLine += "HIGH! ";
+        bottomLine += "FAR! ";
       }
-      setNoiseLED(requestMessage.ultraSonicDistance);
+      setDistanceLED(requestMessage.ultraSonicDistance);
     }
     if(requestMessage.from == 'I'){
       bottomLine = String("DOOR ");
       if(requestMessage.isMoving){
-        bottomLine += "OPEN";
+        bottomLine += " MOVING";
       }
       else{
-        bottomLine += "CLOSED";
+        bottomLine += " STATIONARY";
       }
     }
 
@@ -250,7 +250,7 @@ void updateLCD(){
   botPos++;
 }
 
-void setNoiseLED(int reading){
+void setDistanceLED(int reading){
   int mappedValue = map(reading, 0, 1000, 1, 3);
 
   for(int i = 0; i < 3; i++){
