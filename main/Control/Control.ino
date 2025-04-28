@@ -122,7 +122,7 @@ void loop() {
   }
 }
 
-bool prepareMessage(Message& command, char recipient){
+void prepareMessage(Message& command, char recipient){
   command.from = 'C';
   command.to = recipient;
   command.locked = locked;
