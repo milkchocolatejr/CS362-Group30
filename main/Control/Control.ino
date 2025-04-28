@@ -38,8 +38,8 @@ const int vRX = 3;
 const int LCD_SDA = 18;  //A4
 const int LCD_SCL = 19;  //A5
 const int buzzerPin = 5;
-const int lockedLED = 6;
-const int unlockedLED = 7;
+const int lockedLED = 11;
+const int unlockedLED = 12;
 const int noiseLED[3] = {8,9,10};
 const int SIZE = 20;
 
@@ -52,6 +52,7 @@ int botPos;
 String topLine = "DOOR UNLOCKED";
 String bottomLine = "WELCOME!";
 long lastTick;
+long buzzerStart;
 
 
 //DEBUG FLAG
@@ -73,6 +74,7 @@ void setup() {
   
   pinMode(lockedLED, OUTPUT);
   pinMode(unlockedLED, OUTPUT);
+  pinMode(buzzerPin, OUTPUT);
 
   locked = true;
   topPos = 0;
@@ -119,6 +121,9 @@ void loop() {
   if(millis() - lastTick > REFRESH_RATE){
     updateLCD();
     lastTick = millis();
+  }
+  if(millis() - buzzerStart > 200){
+    noTone(buzzerPin);
   }
 }
 
@@ -270,6 +275,8 @@ void lock(){
   locked = true;
   digitalWrite(lockedLED, HIGH);
   digitalWrite(unlockedLED, LOW);
+  buzzerStart = millis();
+  digitalWrite(buzzerPin, 1000);
   if(debug){Serial.println("LOCKED!");}
   topLine = "DOOR LOCKED";
 }
@@ -279,6 +286,8 @@ void unlock(){
     return;
   }
   locked = false;
+  buzzerStart = millis();
+  digitalWrite(buzzerPin, 2000);
   digitalWrite(lockedLED, LOW);
   digitalWrite(unlockedLED, HIGH);
   if(debug){Serial.println("UNLOCKED!");}

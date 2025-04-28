@@ -17,6 +17,8 @@
 
 #include <SoftwareSerial.h>
 #include <IRremote.h>
+#include <Wire.h>
+#include <MPU6050.h>
 
 struct Message{
     byte to;
@@ -29,10 +31,13 @@ struct Message{
     bool unlocked;
 };
 
-struct AccelStats{
-  float x,y,z = 0.0;
+struct AccelData {
+  float x, y, z;
 };
+AccelData currentAccel;
 
+float accelX0, accelY0, accelZ0;
+const float motionThreshold = 0.1; 
 
 const int SERIAL_BAUD = 115200;
 const int trigPin = 11;
@@ -55,8 +60,7 @@ int delayTime = 500;
 bool debug = true;
 // Use sizeof(Message) which is now defined locally
 int READ_BUFFER_SIZE = sizeof(Message);
-AccelStats baseAccel, currentAccel; // These types are now defined locally
-
+MPU6050 mpu;
 
 SoftwareSerial mySerial(2, 3);
 
@@ -74,16 +78,22 @@ void setup() {
   pinMode(echoPin, INPUT);  // Added pinMode for echoPin
   digitalWrite(trigPin, LOW); // Ensure low initially
 
-  Serial.println("working?");
-  mySerial.println("working?");
+  Wire.begin();
+  mpu.initialize();
 
-  baseAccel.x = 0.0; // TODO: Set baseline valus to first read values on setup or a pre-determined set after we have found what that is
-  baseAccel.y = 0.0;
-  baseAccel.z = 0.0;
+  if (!mpu.testConnection()) {
+    Serial.println("MPU6050 connection failed!");
+  }
 
-  currentAccel.x = 0.0; // TODO: Set values to current live read in values
-  currentAccel.y = 0.0;
-  currentAccel.z = 0.0;
+  Serial.println("MPU6050 connected. Calibrating...");
+
+  // Capture baseline (resting position)
+  accelX0 = mpu.getAccelerationX() / 16384.0;
+  accelY0 = mpu.getAccelerationY() / 16384.0;
+  accelZ0 = mpu.getAccelerationZ() / 16384.0;
+
+  delay(1000);
+  Serial.println("Calibration complete.");
 
   irrecv.enableIRIn(); // start IR receiver
 }
@@ -262,17 +272,37 @@ bool handleInput(byte* buffer, int numBytes, Message& requestMessage) {
   return true; // *** CORRECTED: Return true after processing flags ***
 }
 
-bool checkIfMoving(){
-  //Check if any of the xyz values are more than a set threshold
-  // TODO: Implement actual accelerometer reading and update currentAccel.x, y, z
-  // TODO: Find the threshhold, currently its just 5 as a placeholder
-  float threshold = 5.0; // Example threshold
-  // Use abs() for checking difference in either direction
-  if(abs(currentAccel.x - baseAccel.x) > threshold || abs(currentAccel.y - baseAccel.y) > threshold || abs(currentAccel.z - baseAccel.z) > threshold){
+bool checkIfMoving() {
+  int16_t ax, ay, az;
+  mpu.getAcceleration(&ax, &ay, &az);
+
+  // Convert to g's
+  float accelX = ax / 16384.0;
+  float accelY = ay / 16384.0;
+  float accelZ = az / 16384.0;
+
+  // Update currentAccel struct (OPTIONAL, if you need it elsewhere)
+  currentAccel.x = accelX;
+  currentAccel.y = accelY;
+  currentAccel.z = accelZ;
+
+  float deltaX = abs(accelX - accelX0);
+  float deltaY = abs(accelY - accelY0);
+  float deltaZ = abs(accelZ - accelZ0);
+
+  if (deltaX > motionThreshold || deltaY > motionThreshold || deltaZ > motionThreshold) {
+    if (debug) {
+      Serial.println("Movement detected!");
+    }
     return true;
+  }
+  
+  if (debug) {
+    Serial.println("No movement.");
   }
   return false;
 }
+
 
 float readDistance() {
   unsigned long intervalStartTime; // Changed variable name for clarity
